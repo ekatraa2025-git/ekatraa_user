@@ -1,0 +1,31 @@
+# fastlane/Deliverfile
+# https://docs.fastlane.tools/actions/deliver/
+#
+# Controls how `fastlane deliver` uploads metadata + screenshots to App Store
+# Connect. Treat as the production source of truth for the listing.
+
+app_identifier(ENV["FASTLANE_APP_IDENTIFIER"] || "com.ekatraa.userapp")
+username(ENV["FASTLANE_USER"])
+
+# Upload only what we manage in-repo. Binary uploads run from EAS Submit
+# (or `fastlane pilot`) so this lane stays metadata-only by default.
+skip_binary_upload(true)
+skip_screenshots(false)
+skip_metadata(false)
+force(true)              # bypass interactive confirmations in CI
+submit_for_review(false) # gate review submission behind a manual lane
+
+# Paths
+metadata_path("./fastlane/metadata")
+screenshots_path("./fastlane/screenshots")
+
+# App Store Review answers — keep static information explicit.
+app_review_information(
+  first_name: ENV["APP_REVIEW_FIRST_NAME"] || "Ekatraa",
+  last_name: ENV["APP_REVIEW_LAST_NAME"] || "Support",
+  phone_number: ENV["APP_REVIEW_PHONE"] || "+91-0000000000",
+  email_address: ENV["APP_REVIEW_EMAIL"] || "support@ekatraa.com",
+  demo_user: ENV["APP_REVIEW_DEMO_USER"] || "",
+  demo_password: ENV["APP_REVIEW_DEMO_PASSWORD"] || "",
+  notes: "Ekatraa is an event-planning marketplace. Login screen accepts the demo credentials above; use them to access vendor browsing, AI planning chat, and order checkout."
+)

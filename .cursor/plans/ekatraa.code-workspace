@@ -1,0 +1,17 @@
+{
+  "folders": [
+    {
+      "path": "../..",
+    },
+    {
+      "path": "../../../ekatraa_vendor",
+    },
+    {
+      "path": "../../../ekatraa_backend",
+    },
+    {
+      "path": "../../../ekatraa-web",
+    },
+  ],
+  "settings": {},
+}

@@ -1,0 +1,59 @@
+# fastlane/Fastfile
+# https://docs.fastlane.tools/actions/
+#
+# Lanes Ekatraa relies on for the iOS release cycle. EAS owns the actual
+# build pipeline (`eas build -p ios`), so these lanes focus on the bits EAS
+# does not cover: screenshots, App Store Connect metadata uploads, and
+# TestFlight promotion of an EAS-built IPA.
+
+default_platform(:ios)
+
+platform :ios do
+  before_all do
+    setup_ci if ENV["CI"]
+  end
+
+  desc "Generate localized App Store screenshots via Snapshot UI tests"
+  lane :screenshots do
+    snapshot
+  end
+
+  desc "Upload metadata + screenshots to App Store Connect (no binary)"
+  lane :metadata do
+    deliver
+  end
+
+  desc "Combined screenshot + metadata refresh for an upcoming release"
+  lane :refresh_store_listing do
+    snapshot
+    deliver
+  end
+
+  desc "Upload a previously built IPA to TestFlight (default path: ./build/eKatRaa.ipa)"
+  lane :beta do |options|
+    ipa_path = options[:ipa] || ENV["IPA_PATH"] || "./build/eKatRaa.ipa"
+    UI.user_error!("IPA not found at #{ipa_path}") unless File.exist?(ipa_path)
+    pilot(
+      ipa: ipa_path,
+      skip_waiting_for_build_processing: true,
+      changelog: ENV["TESTFLIGHT_CHANGELOG"] || "Bug fixes and improvements."
+    )
+  end
+
+  desc "Submit the latest TestFlight build for App Store review"
+  lane :submit_review do
+    deliver(
+      submit_for_review: true,
+      automatic_release: false,
+      force: true,
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_metadata: true,
+      submission_information: {
+        add_id_info_uses_idfa: false,
+        export_compliance_uses_encryption: false,
+        export_compliance_encryption_updated: false
+      }
+    )
+  end
+end

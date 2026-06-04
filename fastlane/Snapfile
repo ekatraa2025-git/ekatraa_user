@@ -1,0 +1,33 @@
+# fastlane/Snapfile
+# https://docs.fastlane.tools/actions/snapshot/
+#
+# Snapshot config for App Store screenshots. The matching UI test target is
+# `eKatRaaUITests` (created via `fastlane snapshot init` then customised in
+# Xcode). Run with `bundle exec fastlane snapshots`.
+
+devices([
+  "iPhone 15 Pro Max",      # 6.7" required by App Store
+  "iPhone 15 Pro",          # 6.1" optional but recommended
+  "iPad Pro (12.9-inch) (6th generation)", # iPad required if supportsTablet=true
+])
+
+languages([
+  "en-US",
+])
+
+scheme("eKatRaa")
+workspace("./ios/eKatRaa.xcworkspace")
+
+# Output
+output_directory("./fastlane/screenshots")
+clear_previous_screenshots(true)
+
+# Status bar overrides so screenshots look pristine.
+override_status_bar(true)
+override_status_bar_arguments("--time '9:41' --dataNetwork wifi --wifiBars 3 --cellularBars 4 --batteryState charged --batteryLevel 100")
+
+# Stability
+stop_after_first_error(false)
+concurrent_simulators(true)
+reinstall_app(true)
+erase_simulator(false)

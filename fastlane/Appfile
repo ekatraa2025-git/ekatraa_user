@@ -1,0 +1,12 @@
+# fastlane/Appfile
+# https://docs.fastlane.tools/advanced/Appfile/
+#
+# Apple Connect / Developer Portal context for fastlane lanes.
+# Override via environment variables in CI (FASTLANE_USER, etc.) — never
+# commit real credentials. The `app_identifier` MUST stay in sync with
+# `ios.bundleIdentifier` in app.config.js.
+
+app_identifier(ENV["FASTLANE_APP_IDENTIFIER"] || "com.ekatraa.userapp")
+apple_id(ENV["FASTLANE_USER"])
+team_id(ENV["FASTLANE_TEAM_ID"])
+itc_team_id(ENV["FASTLANE_ITC_TEAM_ID"])
