@@ -1597,7 +1597,7 @@ export default function Home({ navigation }) {
 
                     {/* Help & Contact Us */}
                     <View style={[styles.helpSection, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                        <Text style={[styles.helpTitle, { color: theme.text }]}>{tr('home_need_help')}</Text>
+                        <Text style={[styles.help, { color: 'red', fontSize: 12 }]}></Text>
                         <Text style={[styles.helpSubtitle, { color: theme.textLight }]}>{tr('home_help_subtitle')}</Text>
                         <View style={styles.helpButtons}>
                             <TouchableOpacity
