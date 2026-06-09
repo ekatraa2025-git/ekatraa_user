@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
     View, Text, StyleSheet, ScrollView, FlatList, Image,
     TouchableOpacity, Pressable, Dimensions, Modal, Linking,
-    ActivityIndicator, RefreshControl, Animated,
+    ActivityIndicator, RefreshControl,
     Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -241,7 +241,10 @@ export default function Home({ navigation }) {
         planned_budget: '',
     });
 
-    const categoryAnim = useRef(new Animated.Value(0)).current;
+    const scrollViewRef = useRef(null);
+    const categorySectionYRef = useRef(0);
+    const pendingScrollToCategoriesRef = useRef(false);
+    const [categoryReloadNonce, setCategoryReloadNonce] = useState(0);
     const prevSelectedOccasionRef = useRef(null);
 
     useEffect(() => {
@@ -297,6 +300,11 @@ export default function Home({ navigation }) {
             }
         }
     }, [selectedType, formSubmitted, skipForm]);
+
+    useEffect(() => {
+        if (!useApi || !selectedType) return;
+        getCachedCategories(selectedType).catch(() => {});
+    }, [useApi, selectedType]);
 
     useEffect(() => {
         if (!useApi || !showCategoriesStep || !selectedType) {
@@ -403,27 +411,33 @@ export default function Home({ navigation }) {
             setCategories([]);
             setSelectedCategories(new Set());
             setCategoriesLoading(false);
-            Animated.timing(categoryAnim, { toValue: 0, duration: 200, useNativeDriver: false }).start();
             return;
         }
+        let cancelled = false;
         const loadCategories = async () => {
             setCategoriesLoading(true);
             try {
-                const cats = await getCachedCategories(selectedType);
+                const forceRefresh = categoryReloadNonce > 0;
+                const cats = await getCachedCategories(selectedType, forceRefresh);
+                if (cancelled) return;
                 const safeCats = (cats || []).filter((c) => c && c.id != null && String(c.id).length > 0);
                 const resolved = await Promise.all(
                     safeCats.map(async (cat) => {
-                        let iconUrl = null;
-                        try {
-                            iconUrl = await resolveStorageUrl(cat.icon_url);
-                        } catch (_) {
-                            iconUrl = cat.icon_url || null;
+                        let iconUrl = cat.icon_url || null;
+                        if (iconUrl && !/^https?:\/\//i.test(iconUrl)) {
+                            try {
+                                iconUrl = await resolveStorageUrl(iconUrl);
+                            } catch (_) {
+                                iconUrl = cat.icon_url || null;
+                            }
                         }
-                        let videoUrl = null;
-                        try {
-                            videoUrl = cat.video_url ? await resolveStorageUrl(cat.video_url) : null;
-                        } catch (_) {
-                            videoUrl = cat.video_url || null;
+                        let videoUrl = cat.video_url || null;
+                        if (videoUrl && !/^https?:\/\//i.test(videoUrl)) {
+                            try {
+                                videoUrl = await resolveStorageUrl(videoUrl);
+                            } catch (_) {
+                                videoUrl = cat.video_url || null;
+                            }
                         }
                         return {
                             ...cat,
@@ -432,6 +446,7 @@ export default function Home({ navigation }) {
                         };
                     })
                 );
+                if (cancelled) return;
                 const ordered = [...resolved].sort((a, b) => {
                     const oa = Number(a?.display_order);
                     const ob = Number(b?.display_order);
@@ -441,17 +456,20 @@ export default function Home({ navigation }) {
                 });
                 setCategories(ordered);
                 setSelectedCategories(new Set());
-                if (ordered.length > 0) {
-                    Animated.spring(categoryAnim, { toValue: 1, tension: 60, friction: 10, useNativeDriver: false }).start();
-                }
             } catch (e) {
-                console.log('[CATEGORY LOAD ERROR]', e);
+                if (!cancelled) {
+                    console.log('[CATEGORY LOAD ERROR]', e);
+                    setCategories([]);
+                }
             } finally {
-                setCategoriesLoading(false);
+                if (!cancelled) setCategoriesLoading(false);
             }
         };
         loadCategories();
-    }, [useApi, selectedType, showCategoriesStep]);
+        return () => {
+            cancelled = true;
+        };
+    }, [useApi, selectedType, showCategoriesStep, categoryReloadNonce]);
 
     useFocusEffect(
         useCallback(() => {
@@ -691,6 +709,15 @@ export default function Home({ navigation }) {
         setEventForm(null);
         setSkipForm(true);
         setUserInfoModalVisible(false);
+        pendingScrollToCategoriesRef.current = true;
+    };
+
+    const scrollToCategorySection = useCallback((y) => {
+        scrollViewRef.current?.scrollTo({ y: Math.max(0, y - 12), animated: true });
+    }, []);
+
+    const retryCategoryLoad = () => {
+        setCategoryReloadNonce((n) => n + 1);
     };
 
     const toggleCategory = (cat) => {
@@ -825,6 +852,7 @@ export default function Home({ navigation }) {
                             contentContainerStyle={styles.anonVendorsScroll}
                         >
                             {homeLatestVendors.map((item) => {
+                                const curatedLabel = tr('order_vendor_masked');
                                 const galleryUrls = (item.gallery_urls || []).filter(Boolean);
                                 const displayGalleryUrls =
                                     resolvedPartnerGalleries[item.id]?.length > 0
@@ -835,7 +863,7 @@ export default function Home({ navigation }) {
                                 const sliderUris =
                                     displayGalleryUrls.length > 0
                                         ? displayGalleryUrls
-                                        : [getVendorImageUrl(item.gallery_urls?.[0], item.display_label || 'Vendor')];
+                                        : [getVendorImageUrl(item.gallery_urls?.[0], curatedLabel)];
                                 const cityLine = item.city
                                     ? tr('home_featured_in_city').replace('{city}', String(item.city))
                                     : tr('home_partner_services_hint');
@@ -843,7 +871,7 @@ export default function Home({ navigation }) {
                                     navigation.navigate('VendorDetail', {
                                         vendor: {
                                             id: item.id,
-                                            business_name: item.display_label || 'Vendor',
+                                            business_name: curatedLabel,
                                             logo_url: item.gallery_urls?.[0],
                                             gallery_urls: item.gallery_urls,
                                             city: item.city,
@@ -865,7 +893,7 @@ export default function Home({ navigation }) {
                                             pressed && { opacity: 0.9 },
                                         ]}
                                         accessibilityRole="button"
-                                        accessibilityLabel={`${item.display_label || 'Partner'}, ${cityLine}`}
+                                        accessibilityLabel={`${curatedLabel}, ${cityLine}`}
                                     >
                                         <VendorGallerySlider
                                             imageUris={sliderUris}
@@ -878,7 +906,7 @@ export default function Home({ navigation }) {
                                             placeholderIconColor={theme.textLight}
                                         />
                                         <Text style={[styles.anonVendorPartnerName, { color: theme.text }]} numberOfLines={1}>
-                                            {item.display_label || 'Partner'}
+                                            {curatedLabel}
                                         </Text>
                                         <Text style={[styles.anonVendorCity, { color: theme.textLight }]} numberOfLines={1}>
                                             {cityLine}
@@ -929,6 +957,7 @@ export default function Home({ navigation }) {
                 </View>
 
                 <ScrollView
+                    ref={scrollViewRef}
                     contentContainerStyle={[
                         styles.scrollContent,
                         { paddingBottom: TAB_BAR_CONTENT_H + Math.max(insets.bottom, TAB_BAR_BOTTOM_PAD) + 48 },
@@ -1280,7 +1309,18 @@ export default function Home({ navigation }) {
                     />
 
                     {/* Category Multi-Select Section - only when form submitted or skipped */}
-                    {showCategoriesStep && categoriesLoading && (
+                    {showCategoriesStep ? (
+                        <View
+                            onLayout={(e) => {
+                                const y = e.nativeEvent.layout.y;
+                                categorySectionYRef.current = y;
+                                if (pendingScrollToCategoriesRef.current) {
+                                    pendingScrollToCategoriesRef.current = false;
+                                    scrollToCategorySection(y);
+                                }
+                            }}
+                        >
+                    {categoriesLoading && (
                         <View style={[styles.categorySection, { marginHorizontal: 16, marginBottom: 28 }]}>
                             <LinearGradient
                                 colors={isDarkMode ? ['#181B25', '#1A1D27'] : ['#FFF8F0', '#FFF3E6']}
@@ -1303,14 +1343,34 @@ export default function Home({ navigation }) {
                             </LinearGradient>
                         </View>
                     )}
-                    {showCategoriesStep && !categoriesLoading && categories.length > 0 && (
-                        <Animated.View style={[
-                            styles.categorySection,
-                            {
-                                opacity: categoryAnim,
-                                transform: [{ translateY: categoryAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
-                            },
-                        ]}>
+                    {!categoriesLoading && categories.length === 0 && (
+                        <View style={[styles.categorySection, { marginHorizontal: 16, marginBottom: 28 }]}>
+                            <LinearGradient
+                                colors={isDarkMode ? ['#181B25', '#1A1D27'] : ['#FFF8F0', '#FFF3E6']}
+                                style={styles.categorySectionBg}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                            >
+                                <Text style={[styles.categoryTitle, { color: theme.text }]}>{tr('home_what_need')}</Text>
+                                <Text style={[styles.categorySubtitle, { color: theme.textLight, marginBottom: 16 }]}>
+                                    {tr('home_categories_empty')}
+                                </Text>
+                                <TouchableOpacity style={styles.exploreBtn} onPress={retryCategoryLoad} activeOpacity={0.85}>
+                                    <LinearGradient
+                                        colors={[colors.primary, colors.secondary]}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 0 }}
+                                        style={styles.exploreBtnGradient}
+                                    >
+                                        <Text style={styles.exploreBtnText}>{tr('home_categories_retry')}</Text>
+                                        <Ionicons name="refresh" size={20} color="#FFF" />
+                                    </LinearGradient>
+                                </TouchableOpacity>
+                            </LinearGradient>
+                        </View>
+                    )}
+                    {!categoriesLoading && categories.length > 0 && (
+                        <View style={styles.categorySection}>
                             <LinearGradient
                                 colors={isDarkMode ? ['#181B25', '#1A1D27'] : ['#FFF8F0', '#FFF3E6']}
                                 style={styles.categorySectionBg}
@@ -1425,8 +1485,10 @@ export default function Home({ navigation }) {
                                     </TouchableOpacity>
                                 )}
                             </LinearGradient>
-                        </Animated.View>
+                        </View>
                     )}
+                        </View>
+                    ) : null}
 
                     {showCategoriesStep ? renderLatestPartnersSection() : null}
 
@@ -1461,11 +1523,12 @@ export default function Home({ navigation }) {
                                     contentContainerStyle={styles.previewScroll}
                                 >
                                     {vendorsPreview.map((item) => {
+                                        const curatedLabel = tr('order_vendor_masked');
                                         const thumbs = (item.gallery_urls || []).filter(Boolean);
                                         const sliderUris =
                                             thumbs.length > 0
                                                 ? thumbs.map((uri) => getVendorImageUrl(uri, 'gallery'))
-                                                : [getVendorImageUrl(item.logo_url, item.display_label || 'Vendor')];
+                                                : [getVendorImageUrl(item.logo_url, curatedLabel)];
                                         const svcLine = (item.services || []).filter(Boolean).slice(0, 3).join(' · ');
                                         const cityLine = item.city
                                             ? tr('home_featured_in_city').replace('{city}', String(item.city))
@@ -1479,7 +1542,7 @@ export default function Home({ navigation }) {
                                                     navigation.navigate('VendorDetail', {
                                                         vendor: {
                                                             id: item.id,
-                                                            business_name: item.display_label || 'Vendor',
+                                                            business_name: curatedLabel,
                                                             logo_url: item.gallery_urls?.[0],
                                                             gallery_urls: item.gallery_urls,
                                                             city: item.city,
@@ -1499,7 +1562,10 @@ export default function Home({ navigation }) {
                                                     placeholderColor={isDarkMode ? '#334155' : '#E5E7EB'}
                                                     placeholderIconColor={theme.textLight}
                                                 />
-                                                <Text style={[styles.previewCardLabel, { color: theme.text }]} numberOfLines={2}>
+                                                <Text style={[styles.previewCardLabel, { color: theme.text }]} numberOfLines={1}>
+                                                    {curatedLabel}
+                                                </Text>
+                                                <Text style={[styles.previewCardHint, { color: theme.textLight }]} numberOfLines={1}>
                                                     {cityLine}
                                                 </Text>
                                                 {svcLine ? (

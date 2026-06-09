@@ -86,6 +86,8 @@ const FALLBACK_EN = {
     home_continue: 'Continue',
     home_what_need: 'What do you need?',
     home_loading_categories: 'Loading categories...',
+    home_categories_empty: 'No categories are available for this occasion yet.',
+    home_categories_retry: 'Try again',
     home_need_help: 'Need Help?',
     home_help_subtitle: "We're here to assist you with your event planning",
     home_help_faq: 'Help & FAQ',

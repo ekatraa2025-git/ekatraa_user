@@ -19,6 +19,7 @@ import { colors } from '../../theme/colors';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
+import { authService } from '../../services/supabase';
 import BottomTabBar from '../../components/BottomTabBar';
 import { formatFriendlyDate, formatFriendlyDateTime } from '../../utils/formatFriendlyDate';
 import { getOrderEventContext, localizeEventRole, isVendorIdentityUnlocked, maskVendorDisplayName } from '../../utils/orderDisplay';
@@ -115,7 +116,9 @@ export default function OrderDetail({ route, navigation }) {
             destructive: true,
             onConfirm: async () => {
                 setCancelling(true);
-                const { error } = await api.cancelOrder(orderId, session.access_token);
+                const { session: freshSession } = await authService.getSession();
+                const token = freshSession?.access_token || session.access_token;
+                const { error } = await api.cancelOrder(orderId, token);
                 setCancelling(false);
                 if (error) {
                     showToast({ variant: 'error', title: tr('alert_error'), message: error?.message || tr('order_cancel_failed') });

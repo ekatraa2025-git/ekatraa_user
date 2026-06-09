@@ -518,7 +518,10 @@ export const api = {
             90000
         );
     },
-    async postBudgetRecommendationSnapshot(body) {
+    async postBudgetRecommendationSnapshot(body, accessToken) {
+        if (accessToken) {
+            return postWithAuth('/api/public/budget-recommendation-snapshots', body, accessToken);
+        }
         return post('/api/public/budget-recommendation-snapshots', body);
     },
     /** @param {string} accessToken - Supabase session access_token */
@@ -647,7 +650,7 @@ export const api = {
         if (!accessToken) {
             return { data: null, error: { message: 'Sign in to cancel this order.' } };
         }
-        return patchWithAuth(`/api/public/orders/${orderId}`, { action: 'cancel' }, accessToken);
+        return postWithAuth(`/api/public/orders/${orderId}/cancel`, {}, accessToken);
     },
     /**
      * Match active vendors to the selected services for a given order.

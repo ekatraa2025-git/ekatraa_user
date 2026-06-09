@@ -382,9 +382,9 @@ export default function RecommendationBudgetModal({
             (data.categories || []).forEach((c) => {
                 catPct[c.id] = categoryEdits && categoryEdits[c.id] != null ? categoryEdits[c.id] : c.percentage;
             });
+            const saveToken = isAuthenticated && session?.access_token ? session.access_token : null;
             const { error } = await api.postBudgetRecommendationSnapshot({
                 cart_id: cartId || null,
-                user_id: isAuthenticated && user?.id ? user.id : null,
                 occasion_id: occasionId,
                 contact_name: formSnapshot?.contact_name ?? null,
                 contact_mobile: formSnapshot?.contact_mobile ?? null,
@@ -400,7 +400,7 @@ export default function RecommendationBudgetModal({
                         : narrative
                           ? { source: 'claude' }
                           : null,
-            });
+            }, saveToken);
             if (error) throw new Error(error.message);
             showToast({
                 variant: 'success',

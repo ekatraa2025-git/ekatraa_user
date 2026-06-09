@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useTheme } from '../../context/ThemeContext';
+import { useLocale } from '../../context/LocaleContext';
 import { dbService, getVendorImageUrl } from '../../services/supabase';
 import BottomTabBar from '../../components/BottomTabBar';
 import VendorGallerySlider from '../../components/VendorGallerySlider';
@@ -28,6 +29,7 @@ function parseGallery(raw) {
 
 export default function VendorsList({ route, navigation }) {
     const { theme, isDarkMode } = useTheme();
+    const { t: tr } = useLocale();
     const { service, city, state } = route.params || {};
     
     const [vendors, setVendors] = useState([]);
@@ -78,8 +80,9 @@ export default function VendorsList({ route, navigation }) {
         <TouchableOpacity
             style={[styles.vendorCard, { backgroundColor: theme.card }]}
             onPress={() => navigation.navigate('VendorDetail', { 
-                vendor: item,
+                vendor: { ...item, business_name: tr('order_vendor_masked') },
                 city: city,
+                contactLocked: true,
             })}
             activeOpacity={0.9}
         >
@@ -108,7 +111,7 @@ export default function VendorsList({ route, navigation }) {
             {/* Vendor Details */}
             <View style={styles.vendorInfo}>
                 <Text style={[styles.vendorName, { color: theme.text }]} numberOfLines={1}>
-                    {item.business_name || 'Vendor'}
+                    {tr('order_vendor_masked')}
                 </Text>
                 
                 <View style={styles.categoryRow}>

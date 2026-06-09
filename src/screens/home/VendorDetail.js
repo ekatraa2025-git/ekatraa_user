@@ -102,7 +102,7 @@ export default function VendorDetail({ route, navigation }) {
     }, [vendorParam?.id]);
 
     const vendor = vendorData;
-    const vendorIdentityLocked = !!(fromOrderId && paymentTier === 'unpaid');
+    const vendorIdentityLocked = contactLocked || !!(fromOrderId && paymentTier === 'unpaid');
     const vendorPublicName = useMemo(
         () =>
             maskVendorDisplayName(
