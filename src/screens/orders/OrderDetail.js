@@ -21,7 +21,7 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
 import BottomTabBar from '../../components/BottomTabBar';
 import { formatFriendlyDate, formatFriendlyDateTime } from '../../utils/formatFriendlyDate';
-import { getOrderEventContext, localizeEventRole } from '../../utils/orderDisplay';
+import { getOrderEventContext, localizeEventRole, isVendorIdentityUnlocked, maskVendorDisplayName } from '../../utils/orderDisplay';
 import { useLocale } from '../../context/LocaleContext';
 import { useToast } from '../../context/ToastContext';
 import OrderLineItemRows from '../../components/OrderLineItemRows';
@@ -41,6 +41,7 @@ export default function OrderDetail({ route, navigation }) {
     const [refreshing, setRefreshing] = useState(false);
     const [actioning, setActioning] = useState(null);
     const [acceptingInvoice, setAcceptingInvoice] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
     const [loadError, setLoadError] = useState(null);
 
     const load = useCallback(async () => {
@@ -98,6 +99,31 @@ export default function OrderDetail({ route, navigation }) {
             variant: 'success',
             title: 'Invoice accepted',
             message: data?.total_amount != null ? `Order total is now ₹${Number(data.total_amount).toLocaleString('en-IN')}.` : 'You can pay the balance from this screen.',
+        });
+    };
+
+    const handleCancelOrder = async () => {
+        if (!isAuthenticated || !session?.access_token) {
+            showToast({ variant: 'info', title: tr('alert_login_title'), message: tr('order_error_sign_in_sub') });
+            return;
+        }
+        showConfirm({
+            title: tr('order_cancel_title'),
+            message: tr('order_cancel_confirm'),
+            confirmLabel: tr('order_cancel_action'),
+            cancelLabel: tr('alert_cancel'),
+            destructive: true,
+            onConfirm: async () => {
+                setCancelling(true);
+                const { error } = await api.cancelOrder(orderId, session.access_token);
+                setCancelling(false);
+                if (error) {
+                    showToast({ variant: 'error', title: tr('alert_error'), message: error?.message || tr('order_cancel_failed') });
+                    return;
+                }
+                await load();
+                showToast({ variant: 'success', title: tr('order_cancel_title'), message: tr('order_cancel_success') });
+            },
         });
     };
 
@@ -258,6 +284,8 @@ export default function OrderDetail({ route, navigation }) {
     // phase, and collapsed once work is already in flight so the section stays
     // accessible without dominating the screen.
     const orderStatusLower = (order?.status || '').toLowerCase();
+    const vendorNamesUnlocked = isVendorIdentityUnlocked(order);
+    const canCancelOrder = ['pending', 'allocated', 'confirmed'].includes(orderStatusLower);
     const vendorWorkActive = !!order?.work_started_at
         || ['in_progress', 'completed', 'cancelled', 'refunded'].includes(orderStatusLower);
     const vendorSelectorInitiallyOpen = !vendorWorkActive;
@@ -328,6 +356,23 @@ export default function OrderDetail({ route, navigation }) {
                             {tr('order_advance_paid')}: ₹{advancePaid.toLocaleString()}
                         </Text>
                     )}
+                    {canCancelOrder ? (
+                        <TouchableOpacity
+                            style={[styles.cancelOrderBtn, { borderColor: '#DC2626' + '55', backgroundColor: '#DC2626' + '10' }]}
+                            onPress={handleCancelOrder}
+                            disabled={cancelling}
+                            activeOpacity={0.85}
+                        >
+                            {cancelling ? (
+                                <ActivityIndicator size="small" color="#DC2626" />
+                            ) : (
+                                <>
+                                    <Ionicons name="close-circle-outline" size={18} color="#DC2626" />
+                                    <Text style={styles.cancelOrderBtnText}>{tr('order_cancel_action')}</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    ) : null}
                     {eventCtx.occasionName ? (
                         <>
                             <Text style={[styles.detailLabel, { color: theme.textLight }]}>{tr('order_label_occasion')}</Text>
@@ -424,9 +469,13 @@ export default function OrderDetail({ route, navigation }) {
                                 style={{ width: 120, height: 48, resizeMode: 'contain', marginBottom: 8 }}
                             />
                         ) : null}
-                        {vendorInv.vendor_display_name ? (
-                            <Text style={[styles.meta, { color: theme.text, fontWeight: '700' }]}>{vendorInv.vendor_display_name}</Text>
-                        ) : null}
+                        <Text style={[styles.meta, { color: theme.text, fontWeight: '700' }]}>
+                            {maskVendorDisplayName(
+                                vendorInv.vendor_display_name,
+                                vendorNamesUnlocked,
+                                tr('order_vendor_masked')
+                            )}
+                        </Text>
                         {vendorInv.vendor_gstin ? (
                             <Text style={[styles.meta, { color: theme.textLight }]}>GSTIN: {vendorInv.vendor_gstin}</Text>
                         ) : null}
@@ -626,7 +675,7 @@ export default function OrderDetail({ route, navigation }) {
                                 >
                                     <View style={styles.quoteHeader}>
                                         <Text style={[styles.quoteVendor, { color: theme.text }]}>
-                                            {q.vendor_name || tr('order_quote_vendor')}
+                                            {maskVendorDisplayName(q.vendor_name, vendorNamesUnlocked, tr('order_vendor_masked'))}
                                         </Text>
                                         <Text style={[styles.quoteAmount, { color: colors.primary }]}>
                                             {quoteAmount > 0 ? `₹${quoteAmount.toLocaleString()}` : '—'}
@@ -917,6 +966,17 @@ const styles = StyleSheet.create({
     errorSub: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
     retryBtn: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 },
     retryBtnText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
+    cancelOrderBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        marginTop: 14,
+        paddingVertical: 12,
+        borderRadius: 12,
+        borderWidth: 1.5,
+    },
+    cancelOrderBtnText: { color: '#DC2626', fontSize: 15, fontWeight: '700' },
     emptyText: { padding: 16 },
     completionOtpBox: {
         marginTop: 12,

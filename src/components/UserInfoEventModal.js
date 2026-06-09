@@ -52,6 +52,7 @@ export default function UserInfoEventModal({
     plannedBudgetInr,
     setPlannedBudgetInr,
     occasionName,
+    isWeddingOccasion = false,
     tr,
     theme,
     isDarkMode,
@@ -146,279 +147,283 @@ export default function UserInfoEventModal({
     return (
         <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
             <View style={styles.overlay}>
-            <View style={styles.sheetShell}>
-            <SafeAreaView style={[styles.sheet, { backgroundColor: theme.background }]} edges={['top', 'left', 'right', 'bottom']}>
-                <View style={[styles.header, { borderBottomColor: theme.border }]}>
-                    <TouchableOpacity onPress={goBack} style={styles.headerBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                        <Ionicons name={step > 0 ? 'chevron-back' : 'close'} size={26} color={theme.text} />
-                    </TouchableOpacity>
-                    <View style={{ flex: 1 }}>
-                        <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
-                            {tr('home_form_title')}
-                        </Text>
-                        <Text style={[styles.headerSub, { color: theme.textLight }]}>
-                            {String(tr('userinfo_step_progress'))
-                                .replace('{current}', String(step + 1))
-                                .replace('{total}', String(STEPS))}
-                        </Text>
-                    </View>
-                    <View style={{ width: 40 }} />
-                </View>
+                <View style={styles.sheetShell}>
+                    <SafeAreaView style={[styles.sheet, { backgroundColor: theme.background }]} edges={['top', 'left', 'right', 'bottom']}>
+                        <View style={[styles.header, { borderBottomColor: theme.border }]}>
+                            <TouchableOpacity onPress={goBack} style={styles.headerBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                                <Ionicons name={step > 0 ? 'chevron-back' : 'close'} size={26} color={theme.text} />
+                            </TouchableOpacity>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
+                                    {tr('home_form_title')}
+                                </Text>
+                                <Text style={[styles.headerSub, { color: theme.textLight }]}>
+                                    {String(tr('userinfo_step_progress'))
+                                        .replace('{current}', String(step + 1))
+                                        .replace('{total}', String(STEPS))}
+                                </Text>
+                            </View>
+                            <View style={{ width: 40 }} />
+                        </View>
 
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
-                    <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-                        <Text style={[styles.help, { color: theme.textLight }]}>
-                            {tr('home_form_help')} {occasionName || tr('home_your_occasion')}
-                        </Text>
+                        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
+                            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+                                <Text style={[styles.help, { color: theme.textLight }]}>
+                                    {tr('home_form_help')} {occasionName || tr('home_your_occasion')}
+                                </Text>
 
-                        {step === 0 && (
-                            <>
-                                <Text style={[styles.stepTitle, { color: theme.text }]}>{tr('userinfo_step_contact')}</Text>
-                                <Text style={[styles.formLabel, { color: theme.textLight }]}>{tr('home_i_am')}</Text>
-                                <View style={styles.roleRow}>
-                                    {[
-                                        { key: 'Groom', label: tr('home_role_groom') },
-                                        { key: 'Bride', label: tr('home_role_bride') },
-                                        { key: 'Host', label: tr('home_role_host') },
-                                        { key: 'Other', label: tr('home_role_other') },
-                                    ].map(({ key: role, label: roleLabel }) => (
-                                        <TouchableOpacity
-                                            key={role}
-                                            style={[
-                                                styles.roleChip,
-                                                { backgroundColor: isDarkMode ? '#252840' : '#FFF', borderColor: theme.border },
-                                                form.role === role && { backgroundColor: colors.primary, borderColor: colors.primary },
-                                            ]}
-                                            onPress={() => setForm((p) => ({ ...p, role }))}
-                                        >
-                                            <Text style={[styles.roleText, { color: theme.text }, form.role === role && { color: '#FFF', fontWeight: '700' }]}>
-                                                {roleLabel}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                                <Text style={[styles.formLabel, { color: theme.textLight }]}>{tr('home_name')}</Text>
-                                <View style={[styles.inputWrap, { backgroundColor: isDarkMode ? '#1F2333' : '#FFF', borderColor: theme.border }]}>
-                                    <TextInput
-                                        style={[styles.inputLg, { color: theme.text }]}
-                                        placeholder={tr('userinfo_ph_name')}
-                                        placeholderTextColor={theme.textLight}
-                                        value={form.contact_name}
-                                        onChangeText={(t) => setForm((p) => ({ ...p, contact_name: t }))}
-                                    />
-                                </View>
-                                <Text style={[styles.formLabel, { color: theme.textLight }]}>{tr('home_phone')}</Text>
-                                <View style={[styles.inputWrap, { backgroundColor: isDarkMode ? '#1F2333' : '#FFF', borderColor: theme.border }]}>
-                                    <TextInput
-                                        style={[styles.inputLg, { color: theme.text }]}
-                                        placeholder={tr('userinfo_ph_phone')}
-                                        placeholderTextColor={theme.textLight}
-                                        value={form.contact_mobile}
-                                        onChangeText={(t) => setForm((p) => ({ ...p, contact_mobile: t }))}
-                                        keyboardType="phone-pad"
-                                    />
-                                </View>
-                            </>
-                        )}
-
-                        {step === 1 && (
-                            <>
-                                <Text style={[styles.stepTitle, { color: theme.text }]}>{tr('userinfo_step_event')}</Text>
-                                <Text style={[styles.formLabel, { color: theme.textLight }]}>{tr('home_email')}</Text>
-                                <View style={[styles.inputWrap, { backgroundColor: isDarkMode ? '#1F2333' : '#FFF', borderColor: theme.border }]}>
-                                    <TextInput
-                                        style={[styles.inputLg, { color: theme.text }]}
-                                        placeholder={tr('userinfo_ph_email')}
-                                        placeholderTextColor={theme.textLight}
-                                        value={form.contact_email}
-                                        onChangeText={(t) => setForm((p) => ({ ...p, contact_email: t }))}
-                                        keyboardType="email-address"
-                                    />
-                                </View>
-                                <Text style={[styles.formLabel, { color: theme.textLight }]}>{tr('home_event_date')}</Text>
-                                <TouchableOpacity
-                                    style={[styles.inputWrap, styles.dateBtn, { backgroundColor: isDarkMode ? '#1F2333' : '#FFF', borderColor: theme.border }]}
-                                    onPress={() => setShowDatePicker(true)}
-                                >
-                                    <Ionicons name="calendar-outline" size={20} color={colors.primary} />
-                                    <Text style={[styles.dateTextLg, { color: form.event_date ? theme.text : theme.textLight }]}>
-                                        {form.event_date
-                                            ? new Date(form.event_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
-                                            : tr('home_select_date')}
-                                    </Text>
-                                </TouchableOpacity>
-                                {showDatePicker ? (
-                                    <DateTimePicker
-                                        value={form.event_date ? new Date(form.event_date) : new Date()}
-                                        mode="date"
-                                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                                        minimumDate={new Date()}
-                                        onChange={(e, d) => {
-                                            setShowDatePicker(false);
-                                            if (d) setForm((p) => ({ ...p, event_date: d.toISOString() }));
-                                        }}
-                                    />
-                                ) : null}
-                                <Text style={[styles.formLabel, { color: theme.textLight }]}>{tr('home_guest_count')}</Text>
-                                <View style={[styles.inputWrap, { backgroundColor: isDarkMode ? '#1F2333' : '#FFF', borderColor: theme.border }]}>
-                                    <TextInput
-                                        style={[styles.inputLg, { color: theme.text }]}
-                                        placeholder={tr('userinfo_ph_guests')}
-                                        placeholderTextColor={theme.textLight}
-                                        value={form.guest_count}
-                                        onChangeText={(t) => setForm((p) => ({ ...p, guest_count: t }))}
-                                        keyboardType="number-pad"
-                                    />
-                                </View>
-                            </>
-                        )}
-
-                        {step === 2 && (
-                            <>
-                                <Text style={[styles.stepTitle, { color: theme.text }]}>{tr('userinfo_step_location')}</Text>
-                                <Text style={[styles.formHint, { color: theme.textLight }]}>{tr('home_event_location_hint')}</Text>
-                                <View style={styles.roleRow}>
-                                    {[
-                                        { key: 'own_place', label: tr('home_own_place') },
-                                        { key: 'venue', label: tr('home_venue') },
-                                    ].map((opt) => (
-                                        <TouchableOpacity
-                                            key={opt.key}
-                                            style={[
-                                                styles.roleChip,
-                                                { backgroundColor: isDarkMode ? '#252840' : '#FFF', borderColor: theme.border },
-                                                form.location_kind === opt.key && { backgroundColor: colors.primary, borderColor: colors.primary },
-                                            ]}
-                                            onPress={() => setForm((p) => ({ ...p, location_kind: opt.key }))}
-                                        >
-                                            <Text style={[styles.roleText, { color: theme.text }, form.location_kind === opt.key && { color: '#FFF', fontWeight: '700' }]}>
-                                                {opt.label}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                                {form.location_kind ? (
+                                {step === 0 && (
                                     <>
-                                        <View style={styles.locActionRow}>
-                                            <TouchableOpacity
-                                                style={[styles.locActionBtn, { borderColor: theme.border, backgroundColor: isDarkMode ? '#1F2333' : '#FFF' }]}
-                                                onPress={onPressCurrentLocation}
-                                                disabled={eventLocLoading}
-                                            >
-                                                {eventLocLoading ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="navigate" size={20} color={colors.primary} />}
-                                                <Text style={[styles.locActionTextLg, { color: theme.text }]}>{tr('home_use_current_location')}</Text>
-                                            </TouchableOpacity>
-                                            <TouchableOpacity
-                                                style={[styles.locActionBtn, { borderColor: theme.border, backgroundColor: isDarkMode ? '#1F2333' : '#FFF' }]}
-                                                onPress={onPressMap}
-                                            >
-                                                <Ionicons name="map" size={20} color={colors.primary} />
-                                                <Text style={[styles.locActionTextLg, { color: theme.text }]}>{tr('home_select_on_map')}</Text>
-                                            </TouchableOpacity>
+                                        <Text style={[styles.stepTitle, { color: theme.text }]}>{tr('userinfo_step_contact')}</Text>
+                                        <Text style={[styles.formLabel, { color: theme.textLight }]}>{tr('home_i_am')}</Text>
+                                        <View style={styles.roleRow}>
+                                            {[
+                                                ...(isWeddingOccasion
+                                                    ? [
+                                                          { key: 'Groom', label: tr('home_role_groom') },
+                                                          { key: 'Bride', label: tr('home_role_bride') },
+                                                      ]
+                                                    : []),
+                                                { key: 'Host', label: tr('home_role_host') },
+                                                { key: 'Other', label: tr('home_role_other') },
+                                            ].map(({ key: role, label: roleLabel }) => (
+                                                <TouchableOpacity
+                                                    key={role}
+                                                    style={[
+                                                        styles.roleChip,
+                                                        { backgroundColor: isDarkMode ? '#252840' : '#FFF', borderColor: theme.border },
+                                                        form.role === role && { backgroundColor: colors.primary, borderColor: colors.primary },
+                                                    ]}
+                                                    onPress={() => setForm((p) => ({ ...p, role }))}
+                                                >
+                                                    <Text style={[styles.roleText, { color: theme.text }, form.role === role && { color: '#FFF', fontWeight: '700' }]}>
+                                                        {roleLabel}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
                                         </View>
-                                        {form.location_preference ? (
-                                            <View style={[styles.locPreview, { borderColor: theme.border, backgroundColor: isDarkMode ? '#1A1D27' : '#F9FAFB' }]}>
-                                                <Ionicons name="location" size={18} color={colors.primary} />
-                                                <Text style={[styles.locPreviewText, { color: theme.text }]} numberOfLines={4}>
-                                                    {form.location_preference}
-                                                </Text>
-                                            </View>
-                                        ) : (
-                                            <Text style={[styles.formHint, { color: theme.textLight }]}>{tr('home_pick_location_hint')}</Text>
-                                        )}
-                                        {form.location_kind === 'venue' ? (
-                                            <View style={{ marginTop: 12 }}>
-                                                <Text style={[styles.formLabel, { color: theme.textLight }]}>{tr('home_venue_optional')}</Text>
-                                                <View style={[styles.inputWrap, { backgroundColor: isDarkMode ? '#1F2333' : '#FFF', borderColor: theme.border }]}>
-                                                    <TextInput
-                                                        style={[styles.inputLg, { color: theme.text }]}
-                                                        placeholder={tr('home_venue_ph')}
-                                                        placeholderTextColor={theme.textLight}
-                                                        value={form.venue_detail}
-                                                        onChangeText={(t) => setForm((p) => ({ ...p, venue_detail: t }))}
-                                                    />
+                                        <Text style={[styles.formLabel, { color: theme.textLight }]}>{tr('home_name')}</Text>
+                                        <View style={[styles.inputWrap, { backgroundColor: isDarkMode ? '#1F2333' : '#FFF', borderColor: theme.border }]}>
+                                            <TextInput
+                                                style={[styles.inputLg, { color: theme.text }]}
+                                                placeholder={tr('userinfo_ph_name')}
+                                                placeholderTextColor={theme.textLight}
+                                                value={form.contact_name}
+                                                onChangeText={(t) => setForm((p) => ({ ...p, contact_name: t }))}
+                                            />
+                                        </View>
+                                        <Text style={[styles.formLabel, { color: theme.textLight }]}>{tr('home_phone')}</Text>
+                                        <View style={[styles.inputWrap, { backgroundColor: isDarkMode ? '#1F2333' : '#FFF', borderColor: theme.border }]}>
+                                            <TextInput
+                                                style={[styles.inputLg, { color: theme.text }]}
+                                                placeholder={tr('userinfo_ph_phone')}
+                                                placeholderTextColor={theme.textLight}
+                                                value={form.contact_mobile}
+                                                onChangeText={(t) => setForm((p) => ({ ...p, contact_mobile: t }))}
+                                                keyboardType="phone-pad"
+                                            />
+                                        </View>
+                                    </>
+                                )}
+
+                                {step === 1 && (
+                                    <>
+                                        <Text style={[styles.stepTitle, { color: theme.text }]}>{tr('userinfo_step_event')}</Text>
+                                        <Text style={[styles.formLabel, { color: theme.textLight }]}>{tr('home_email')}</Text>
+                                        <View style={[styles.inputWrap, { backgroundColor: isDarkMode ? '#1F2333' : '#FFF', borderColor: theme.border }]}>
+                                            <TextInput
+                                                style={[styles.inputLg, { color: theme.text }]}
+                                                placeholder={tr('userinfo_ph_email')}
+                                                placeholderTextColor={theme.textLight}
+                                                value={form.contact_email}
+                                                onChangeText={(t) => setForm((p) => ({ ...p, contact_email: t }))}
+                                                keyboardType="email-address"
+                                            />
+                                        </View>
+                                        <Text style={[styles.formLabel, { color: theme.textLight }]}>{tr('home_event_date')}</Text>
+                                        <TouchableOpacity
+                                            style={[styles.inputWrap, styles.dateBtn, { backgroundColor: isDarkMode ? '#1F2333' : '#FFF', borderColor: theme.border }]}
+                                            onPress={() => setShowDatePicker(true)}
+                                        >
+                                            <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+                                            <Text style={[styles.dateTextLg, { color: form.event_date ? theme.text : theme.textLight }]}>
+                                                {form.event_date
+                                                    ? new Date(form.event_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+                                                    : tr('home_select_date')}
+                                            </Text>
+                                        </TouchableOpacity>
+                                        {showDatePicker ? (
+                                            <DateTimePicker
+                                                value={form.event_date ? new Date(form.event_date) : new Date()}
+                                                mode="date"
+                                                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                                                minimumDate={new Date()}
+                                                onChange={(e, d) => {
+                                                    setShowDatePicker(false);
+                                                    if (d) setForm((p) => ({ ...p, event_date: d.toISOString() }));
+                                                }}
+                                            />
+                                        ) : null}
+                                        <Text style={[styles.formLabel, { color: theme.textLight }]}>{tr('home_guest_count')}</Text>
+                                        <View style={[styles.inputWrap, { backgroundColor: isDarkMode ? '#1F2333' : '#FFF', borderColor: theme.border }]}>
+                                            <TextInput
+                                                style={[styles.inputLg, { color: theme.text }]}
+                                                placeholder={tr('userinfo_ph_guests')}
+                                                placeholderTextColor={theme.textLight}
+                                                value={form.guest_count}
+                                                onChangeText={(t) => setForm((p) => ({ ...p, guest_count: t }))}
+                                                keyboardType="number-pad"
+                                            />
+                                        </View>
+                                    </>
+                                )}
+
+                                {step === 2 && (
+                                    <>
+                                        <Text style={[styles.stepTitle, { color: theme.text }]}>{tr('userinfo_step_location')}</Text>
+                                        <Text style={[styles.formHint, { color: theme.textLight }]}>{tr('home_event_location_hint')}</Text>
+                                        <View style={styles.roleRow}>
+                                            {[
+                                                { key: 'own_place', label: tr('home_own_place') },
+                                                { key: 'venue', label: tr('home_venue') },
+                                            ].map((opt) => (
+                                                <TouchableOpacity
+                                                    key={opt.key}
+                                                    style={[
+                                                        styles.roleChip,
+                                                        { backgroundColor: isDarkMode ? '#252840' : '#FFF', borderColor: theme.border },
+                                                        form.location_kind === opt.key && { backgroundColor: colors.primary, borderColor: colors.primary },
+                                                    ]}
+                                                    onPress={() => setForm((p) => ({ ...p, location_kind: opt.key }))}
+                                                >
+                                                    <Text style={[styles.roleText, { color: theme.text }, form.location_kind === opt.key && { color: '#FFF', fontWeight: '700' }]}>
+                                                        {opt.label}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                        {form.location_kind ? (
+                                            <>
+                                                <View style={styles.locActionRow}>
+                                                    <TouchableOpacity
+                                                        style={[styles.locActionBtn, { borderColor: theme.border, backgroundColor: isDarkMode ? '#1F2333' : '#FFF' }]}
+                                                        onPress={onPressCurrentLocation}
+                                                        disabled={eventLocLoading}
+                                                    >
+                                                        {eventLocLoading ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="navigate" size={20} color={colors.primary} />}
+                                                        <Text style={[styles.locActionTextLg, { color: theme.text }]}>{tr('home_use_current_location')}</Text>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity
+                                                        style={[styles.locActionBtn, { borderColor: theme.border, backgroundColor: isDarkMode ? '#1F2333' : '#FFF' }]}
+                                                        onPress={onPressMap}
+                                                    >
+                                                        <Ionicons name="map" size={20} color={colors.primary} />
+                                                        <Text style={[styles.locActionTextLg, { color: theme.text }]}>{tr('home_select_on_map')}</Text>
+                                                    </TouchableOpacity>
                                                 </View>
-                                            </View>
+                                                {form.location_preference ? (
+                                                    <View style={[styles.locPreview, { borderColor: theme.border, backgroundColor: isDarkMode ? '#1A1D27' : '#F9FAFB' }]}>
+                                                        <Ionicons name="location" size={18} color={colors.primary} />
+                                                        <Text style={[styles.locPreviewText, { color: theme.text }]} numberOfLines={4}>
+                                                            {form.location_preference}
+                                                        </Text>
+                                                    </View>
+                                                ) : (
+                                                    <Text style={[styles.formHint, { color: theme.textLight }]}>{tr('home_pick_location_hint')}</Text>
+                                                )}
+                                                {form.location_kind === 'venue' ? (
+                                                    <View style={{ marginTop: 12 }}>
+                                                        <Text style={[styles.formLabel, { color: theme.textLight }]}>{tr('home_venue_optional')}</Text>
+                                                        <View style={[styles.inputWrap, { backgroundColor: isDarkMode ? '#1F2333' : '#FFF', borderColor: theme.border }]}>
+                                                            <TextInput
+                                                                style={[styles.inputLg, { color: theme.text }]}
+                                                                placeholder={tr('home_venue_ph')}
+                                                                placeholderTextColor={theme.textLight}
+                                                                value={form.venue_detail}
+                                                                onChangeText={(t) => setForm((p) => ({ ...p, venue_detail: t }))}
+                                                            />
+                                                        </View>
+                                                    </View>
+                                                ) : null}
+                                            </>
                                         ) : null}
                                     </>
-                                ) : null}
-                            </>
-                        )}
+                                )}
 
-                        {step === 3 && (
-                            <>
-                                <Text style={[styles.stepTitle, { color: theme.text }]}>{tr('userinfo_step_budget')}</Text>
-                                <Text style={[styles.formHint, { color: theme.textLight }]}>{tr('home_budget_slider_hint')}</Text>
-                                <Text style={[styles.budgetValue, { color: colors.primary }]}>
-                                    {formatBudgetInrLabel(plannedBudgetInr)} (₹{Math.round(plannedBudgetInr).toLocaleString()})
-                                </Text>
-                                <Slider
-                                    style={styles.slider}
-                                    minimumValue={minBudgetInr}
-                                    maximumValue={maxBudgetInr}
-                                    value={Math.max(minBudgetInr, Math.min(maxBudgetInr, plannedBudgetInr))}
-                                    onValueChange={(v) => setPlannedBudgetInr(Math.round(v))}
-                                    onSlidingComplete={(v) => {
-                                        const x = Math.round(v);
-                                        setPlannedBudgetInr(x);
-                                        setForm((p) => ({ ...p, planned_budget: formatBudgetInrLabel(x) }));
-                                    }}
-                                    minimumTrackTintColor={colors.primary}
-                                    maximumTrackTintColor={theme.border}
-                                    thumbTintColor={colors.primary}
-                                />
-                                <View style={styles.budgetGrid}>
-                                    {PLANNED_BUDGET_CHIPS.map(({ slug, inr }) => (
-                                        <TouchableOpacity
-                                            key={slug}
-                                            style={[
-                                                styles.budgetChip,
-                                                { backgroundColor: isDarkMode ? '#252840' : '#FFF', borderColor: theme.border },
-                                                chipActive(inr) && { backgroundColor: colors.primary, borderColor: colors.primary },
-                                            ]}
-                                            onPress={() => {
-                                                setPlannedBudgetInr(inr);
-                                                setForm((p) => ({ ...p, planned_budget: formatBudgetInrLabel(inr) }));
+                                {step === 3 && (
+                                    <>
+                                        <Text style={[styles.stepTitle, { color: theme.text }]}>{tr('userinfo_step_budget')}</Text>
+                                        <Text style={[styles.formHint, { color: theme.textLight }]}>{tr('home_budget_slider_hint')}</Text>
+                                        <Text style={[styles.budgetValue, { color: colors.primary }]}>
+                                            {formatBudgetInrLabel(plannedBudgetInr)} (₹{Math.round(plannedBudgetInr).toLocaleString()})
+                                        </Text>
+                                        <Slider
+                                            style={styles.slider}
+                                            minimumValue={minBudgetInr}
+                                            maximumValue={maxBudgetInr}
+                                            value={Math.max(minBudgetInr, Math.min(maxBudgetInr, plannedBudgetInr))}
+                                            onValueChange={(v) => setPlannedBudgetInr(Math.round(v))}
+                                            onSlidingComplete={(v) => {
+                                                const x = Math.round(v);
+                                                setPlannedBudgetInr(x);
+                                                setForm((p) => ({ ...p, planned_budget: formatBudgetInrLabel(x) }));
                                             }}
-                                        >
-                                            <Text style={[styles.budgetChipText, { color: theme.text }, chipActive(inr) && { color: '#FFF', fontWeight: '700' }]}>
-                                                {tr(`budget_chip_${slug}`)}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            </>
-                        )}
+                                            minimumTrackTintColor={colors.primary}
+                                            maximumTrackTintColor={theme.border}
+                                            thumbTintColor={colors.primary}
+                                        />
+                                        <View style={styles.budgetGrid}>
+                                            {PLANNED_BUDGET_CHIPS.map(({ slug, inr }) => (
+                                                <TouchableOpacity
+                                                    key={slug}
+                                                    style={[
+                                                        styles.budgetChip,
+                                                        { backgroundColor: isDarkMode ? '#252840' : '#FFF', borderColor: theme.border },
+                                                        chipActive(inr) && { backgroundColor: colors.primary, borderColor: colors.primary },
+                                                    ]}
+                                                    onPress={() => {
+                                                        setPlannedBudgetInr(inr);
+                                                        setForm((p) => ({ ...p, planned_budget: formatBudgetInrLabel(inr) }));
+                                                    }}
+                                                >
+                                                    <Text style={[styles.budgetChipText, { color: theme.text }, chipActive(inr) && { color: '#FFF', fontWeight: '700' }]}>
+                                                        {tr(`budget_chip_${slug}`)}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                    </>
+                                )}
 
-                        <View style={styles.actions}>
-                            {step < STEPS - 1 ? (
-                                <TouchableOpacity
-                                    style={[styles.primaryBtn]}
-                                    onPress={goNext}
-                                    activeOpacity={0.85}
-                                >
-                                    <LinearGradient colors={[colors.primary, colors.secondary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.primaryGrad}>
-                                        <Text style={styles.primaryBtnText}>{tr('userinfo_next')}</Text>
-                                        <Ionicons name="arrow-forward" size={20} color="#FFF" />
-                                    </LinearGradient>
-                                </TouchableOpacity>
-                            ) : (
-                                <TouchableOpacity style={styles.primaryBtn} onPress={submitAll} activeOpacity={0.85} disabled={formSubmitting}>
-                                    <LinearGradient colors={[colors.primary, colors.secondary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.primaryGrad}>
-                                        {formSubmitting && <ActivityIndicator size="small" color="#FFF" style={{ marginRight: 8 }} />}
-                                        <Text style={styles.primaryBtnText}>{tr('home_continue')}</Text>
-                                        <Ionicons name="arrow-forward" size={20} color="#FFF" />
-                                    </LinearGradient>
-                                </TouchableOpacity>
-                            )}
-                            <TouchableOpacity style={[styles.skipBtn, { borderColor: theme.border }]} onPress={onSkip} activeOpacity={0.8}>
-                                <Text style={[styles.skipText, { color: theme.text }]}>{tr('home_skip_browse')}</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </ScrollView>
-                </KeyboardAvoidingView>
-            </SafeAreaView>
-            </View>
+                                <View style={styles.actions}>
+                                    {step < STEPS - 1 ? (
+                                        <TouchableOpacity
+                                            style={[styles.primaryBtn]}
+                                            onPress={goNext}
+                                            activeOpacity={0.85}
+                                        >
+                                            <LinearGradient colors={[colors.primary, colors.secondary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.primaryGrad}>
+                                                <Text style={styles.primaryBtnText}>{tr('userinfo_next')}</Text>
+                                                <Ionicons name="arrow-forward" size={20} color="#FFF" />
+                                            </LinearGradient>
+                                        </TouchableOpacity>
+                                    ) : (
+                                        <TouchableOpacity style={styles.primaryBtn} onPress={submitAll} activeOpacity={0.85} disabled={formSubmitting}>
+                                            <LinearGradient colors={[colors.primary, colors.secondary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.primaryGrad}>
+                                                {formSubmitting && <ActivityIndicator size="small" color="#FFF" style={{ marginRight: 8 }} />}
+                                                <Text style={styles.primaryBtnText}>{tr('home_continue')}</Text>
+                                                <Ionicons name="arrow-forward" size={20} color="#FFF" />
+                                            </LinearGradient>
+                                        </TouchableOpacity>
+                                    )}
+                                    <TouchableOpacity style={[styles.skipBtn, { borderColor: theme.border }]} onPress={onSkip} activeOpacity={0.8}>
+                                        <Text style={[styles.skipText, { color: theme.text }]}>{tr('home_skip_browse')}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </ScrollView>
+                        </KeyboardAvoidingView>
+                    </SafeAreaView>
+                </View>
             </View>
         </Modal>
     );

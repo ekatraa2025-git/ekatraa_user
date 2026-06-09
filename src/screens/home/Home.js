@@ -550,6 +550,9 @@ export default function Home({ navigation }) {
         if (newId) {
             setFormSubmitted(false);
             setSkipForm(false);
+            if (newId !== 'wedding' && (form.role === 'Groom' || form.role === 'Bride')) {
+                setForm((p) => ({ ...p, role: '' }));
+            }
         }
     };
 
@@ -752,6 +755,7 @@ export default function Home({ navigation }) {
     };
 
     const selectedOccasionObj = eventTypes.find(t => t.id === selectedType);
+    const isWeddingOccasion = selectedType === 'wedding';
     const planningEventFormSnapshot = useMemo(() => {
         const mobileDigits = (form.contact_mobile || '').replace(/\D/g, '');
         const inr = Math.min(
@@ -925,8 +929,13 @@ export default function Home({ navigation }) {
                 </View>
 
                 <ScrollView
-                    contentContainerStyle={styles.scrollContent}
+                    contentContainerStyle={[
+                        styles.scrollContent,
+                        { paddingBottom: TAB_BAR_CONTENT_H + Math.max(insets.bottom, TAB_BAR_BOTTOM_PAD) + 48 },
+                    ]}
                     showsVerticalScrollIndicator={false}
+                    nestedScrollEnabled
+                    keyboardShouldPersistTaps="handled"
                     refreshControl={
                         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
                     }
@@ -1256,6 +1265,7 @@ export default function Home({ navigation }) {
                         plannedBudgetInr={plannedBudgetInr}
                         setPlannedBudgetInr={setPlannedBudgetInr}
                         occasionName={selectedOccasionObj?.name}
+                        isWeddingOccasion={isWeddingOccasion}
                         tr={tr}
                         theme={theme}
                         isDarkMode={isDarkMode}
@@ -1344,6 +1354,8 @@ export default function Home({ navigation }) {
 
                                 <ScrollView
                                     horizontal
+                                    nestedScrollEnabled
+                                    directionalLockEnabled
                                     showsHorizontalScrollIndicator={false}
                                     contentContainerStyle={styles.categoryScrollContent}
                                 >
@@ -1443,6 +1455,8 @@ export default function Home({ navigation }) {
                             ) : (
                                 <ScrollView
                                     horizontal
+                                    nestedScrollEnabled
+                                    directionalLockEnabled
                                     showsHorizontalScrollIndicator={false}
                                     contentContainerStyle={styles.previewScroll}
                                 >

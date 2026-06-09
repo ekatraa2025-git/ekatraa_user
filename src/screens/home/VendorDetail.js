@@ -18,6 +18,7 @@ import { useToast } from '../../context/ToastContext';
 import VendorGallerySlider from '../../components/VendorGallerySlider';
 import { useCart } from '../../context/CartContext';
 import { getOfferableTierRows } from '../../utils/lineItemDisplay';
+import { maskVendorDisplayName } from '../../utils/orderDisplay';
 
 function normalizeGalleryUrls(raw) {
     if (raw == null) return [];
@@ -101,6 +102,16 @@ export default function VendorDetail({ route, navigation }) {
     }, [vendorParam?.id]);
 
     const vendor = vendorData;
+    const vendorIdentityLocked = !!(fromOrderId && paymentTier === 'unpaid');
+    const vendorPublicName = useMemo(
+        () =>
+            maskVendorDisplayName(
+                vendor?.business_name || vendor?.display_label,
+                !vendorIdentityLocked,
+                'Curated partner'
+            ),
+        [vendor?.business_name, vendor?.display_label, vendorIdentityLocked]
+    );
 
     const galleryListRaw = useMemo(() => normalizeGalleryUrls(vendor?.gallery_urls), [vendor?.gallery_urls]);
     const galleryListMerged = useMemo(
@@ -156,7 +167,7 @@ export default function VendorDetail({ route, navigation }) {
     useEffect(() => {
         if (!vendor) return;
         let cancelled = false;
-        const name = vendor.business_name || 'Vendor';
+        const name = vendorPublicName;
         (async () => {
             const galleryResolved = await Promise.all(
                 galleryListMerged.map(async (path) => {
@@ -175,21 +186,20 @@ export default function VendorDetail({ route, navigation }) {
         return () => {
             cancelled = true;
         };
-    }, [vendor, galleryListMerged]);
+    }, [vendor, galleryListMerged, vendorPublicName]);
 
     const displayGalleryUris = useMemo(() => {
         if (!vendor) return [];
-        const name = vendor.business_name || 'Vendor';
         if (resolvedGalleryUris.length > 0) return resolvedGalleryUris;
-        return galleryListMerged.map((p) => getVendorImageUrl(p, name));
-    }, [vendor, resolvedGalleryUris, galleryListMerged]);
+        return galleryListMerged.map((p) => getVendorImageUrl(p, vendorPublicName));
+    }, [vendor, resolvedGalleryUris, galleryListMerged, vendorPublicName]);
 
     const heroLogoUri = resolvedLogoUri
-        || (vendor ? getVendorImageUrl(vendor.logo_url, vendor.business_name || 'Vendor') : null);
+        || (vendor ? getVendorImageUrl(vendor.logo_url, vendorPublicName) : null);
     const heroSliderUris = displayGalleryUris.length > 0 ? displayGalleryUris : [heroLogoUri];
     const heroFallbackUri = useMemo(
-        () => getVendorImageUrl(null, vendor?.business_name || 'Vendor'),
-        [vendor?.business_name]
+        () => getVendorImageUrl(null, vendorPublicName),
+        [vendorPublicName]
     );
 
     // When the user came from an order, surface the exact service they're
@@ -263,10 +273,10 @@ export default function VendorDetail({ route, navigation }) {
                 </View>
                 <View style={[styles.authGateContainer, { backgroundColor: theme.card }]}>
                     <Image
-                        source={{ uri: heroLogoUri || getVendorImageUrl(vendor.logo_url, vendor.business_name) }}
+                        source={{ uri: heroLogoUri || getVendorImageUrl(vendor.logo_url, vendorPublicName) }}
                         style={styles.authGateLogo}
                     />
-                    <Text style={[styles.authGateName, { color: theme.text }]}>{vendor.business_name || 'Vendor'}</Text>
+                    <Text style={[styles.authGateName, { color: theme.text }]}>{vendorPublicName}</Text>
                     <Text style={[styles.authGateCategory, { color: theme.textLight }]}>{vendor.category || 'Service Provider'}</Text>
                     <Text style={[styles.authGateMessage, { color: theme.textLight }]}>
                         Register or login to view full details, services, pricing and contact info.
@@ -337,8 +347,8 @@ export default function VendorDetail({ route, navigation }) {
                 event_date: enquiryData.eventDate.toISOString(),
                 contact_name: enquiryData.name,
                 contact_phone: enquiryData.phone.replace(/\D/g, ''),
-                additional_notes: `Vendor: ${vendor.business_name} (ID: ${vendor.id})\n${enquiryData.message || ''}`,
-                preferred_venue: vendor.business_name,
+                additional_notes: `Vendor: ${vendorPublicName} (ID: ${vendor.id})\n${enquiryData.message || ''}`,
+                preferred_venue: vendorPublicName,
                 city: city || vendor.city,
                 status: 'pending',
             };
@@ -350,7 +360,7 @@ export default function VendorDetail({ route, navigation }) {
             showToast({
                 variant: 'success',
                 title: 'Enquiry sent',
-                message: `Your enquiry has been sent to ${vendor.business_name}. They will contact you soon.`,
+                message: `Your enquiry has been sent to ${vendorPublicName}. They will contact you soon.`,
                 action: { label: 'OK', onPress: () => setEnquiryVisible(false) },
             });
 
@@ -500,7 +510,7 @@ export default function VendorDetail({ route, navigation }) {
                     ]}
                 >
                     <Text style={[styles.vendorInfoFloatName, { color: theme.text }]} numberOfLines={1}>
-                        {vendor.business_name || 'Vendor'}
+                        {vendorPublicName}
                     </Text>
                     <Text style={[styles.vendorInfoFloatMeta, { color: theme.textLight }]} numberOfLines={1}>
                         {vendor.category || 'Service Provider'}{vendor.city ? ` · ${vendor.city}` : ''}
@@ -996,7 +1006,7 @@ export default function VendorDetail({ route, navigation }) {
                     <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
                         <View style={styles.modalHeader}>
                             <Text style={[styles.modalTitle, { color: theme.text }]}>
-                                Enquiry for {vendor.business_name}
+                                Enquiry for {vendorPublicName}
                             </Text>
                             <TouchableOpacity onPress={() => setEnquiryVisible(false)}>
                                 <Ionicons name="close" size={24} color={theme.textLight} />

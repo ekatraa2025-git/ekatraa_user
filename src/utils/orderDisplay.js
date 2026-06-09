@@ -67,6 +67,18 @@ export function localizeEventRole(role, tr) {
     return key ? tr(key) : String(role).trim();
 }
 
+/** True once 20% advance (or any advance payment) is recorded on the order. */
+export function isVendorIdentityUnlocked(order) {
+    if (!order || typeof order !== 'object') return false;
+    if (order.advance_paid_at) return true;
+    return Number(order.advance_amount ?? 0) > 0;
+}
+
+export function maskVendorDisplayName(name, unlocked, fallback = 'Curated partner') {
+    if (unlocked && name && String(name).trim()) return String(name).trim();
+    return fallback;
+}
+
 /** @deprecated Use getOrderEventContext for structured fields */
 export function getOccasionAndApplicant(order) {
     const ctx = getOrderEventContext(order);

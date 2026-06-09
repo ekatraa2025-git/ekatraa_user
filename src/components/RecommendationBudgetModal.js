@@ -15,6 +15,7 @@ import {
     Platform,
     UIManager,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,8 +27,6 @@ import { api } from '../services/api';
 import { sanitizeAiDisplayText } from '../utils/sanitizeAiDisplayText';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-/** Match user-info sheet: start slightly above center, fill to bottom (avoids collapsed strip layout). */
-const REC_MODAL_TOP = Math.round(SCREEN_HEIGHT * 0.38);
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -163,6 +162,8 @@ export default function RecommendationBudgetModal({
     const { showToast } = useToast();
     const { session } = useAuth();
     const { cartOwnerAnonSession } = useCart();
+    const insets = useSafeAreaInsets();
+    const sheetTop = Math.max(insets.top, 12);
     const [modalBudgetInr, setModalBudgetInr] = useState(MIN_BUDGET_INR);
     const [categoryEdits, setCategoryEdits] = useState(null);
     const [narrative, setNarrative] = useState(null);
@@ -527,9 +528,29 @@ export default function RecommendationBudgetModal({
         <Modal visible={visible} animationType="slide" transparent>
             <View style={styles.modalRoot}>
                 <Pressable style={StyleSheet.absoluteFill} onPress={() => onClose(false)} accessibilityRole="button" />
-                <View style={[styles.recModalContent, { backgroundColor: theme.card }]}>
+                <View
+                    style={[
+                        styles.recModalContent,
+                        {
+                            backgroundColor: theme.card,
+                            top: sheetTop,
+                            paddingBottom: Math.max(insets.bottom, 12),
+                        },
+                    ]}
+                >
                     <View style={styles.sheetHeader}>
-                        <View style={styles.pickerHandle} />
+                        <View style={styles.sheetHeaderTop}>
+                            <View style={styles.pickerHandle} />
+                            <TouchableOpacity
+                                style={[styles.recCloseBtn, { backgroundColor: isDarkMode ? '#1F2333' : '#F3F4F6' }]}
+                                onPress={() => onClose(false)}
+                                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                                accessibilityRole="button"
+                                accessibilityLabel="Close budget planner"
+                            >
+                                <Ionicons name="close-circle" size={30} color={theme.text} />
+                            </TouchableOpacity>
+                        </View>
                         <Text style={[styles.pickerTitle, { color: theme.text }]}>
                             Plan your event budget{occasionName ? ` — ${occasionName}` : ''}
                         </Text>
@@ -944,6 +965,24 @@ const styles = StyleSheet.create({
     sheetHeader: {
         flexShrink: 0,
     },
+    sheetHeaderTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 16,
+        marginBottom: 4,
+        minHeight: 40,
+    },
+    recCloseBtn: {
+        position: 'absolute',
+        right: 16,
+        top: 0,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     recRefreshOverlay: {
         ...StyleSheet.absoluteFillObject,
         justifyContent: 'center',
@@ -969,7 +1008,6 @@ const styles = StyleSheet.create({
         position: 'absolute',
         left: 0,
         right: 0,
-        top: REC_MODAL_TOP,
         bottom: 0,
         width: '100%',
         borderTopLeftRadius: 20,
@@ -977,6 +1015,7 @@ const styles = StyleSheet.create({
         paddingTop: 12,
         flexDirection: 'column',
         overflow: 'hidden',
+        maxHeight: SCREEN_HEIGHT,
     },
     recModalScroll: { flex: 1 },
     recModalScrollContent: { paddingBottom: 34, paddingHorizontal: 16 },

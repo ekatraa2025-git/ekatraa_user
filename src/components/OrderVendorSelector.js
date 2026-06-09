@@ -14,6 +14,7 @@ import VendorGallerySlider from './VendorGallerySlider';
 import { api } from '../services/api';
 import { getVendorImageUrl, resolveStorageUrl } from '../services/supabase';
 import { useToast } from '../context/ToastContext';
+import { maskVendorDisplayName } from '../utils/orderDisplay';
 
 /**
  * Order-confirmation vendor picker.
@@ -83,6 +84,7 @@ function OrderVendorSelector({
 
     const paymentTier = matchPayload?.payment_tier || 'unpaid';
     const isFullPayment = paymentTier === 'full';
+    const vendorNamesUnlocked = paymentTier !== 'unpaid';
     const requireSelection = isFullPayment;
     const services = useMemo(
         () => (Array.isArray(matchPayload?.services) ? matchPayload.services : []),
@@ -309,6 +311,7 @@ function OrderVendorSelector({
                                     service={service}
                                     theme={theme}
                                     isFullPayment={isFullPayment}
+                                    vendorNamesUnlocked={vendorNamesUnlocked}
                                     selectedVendorId={allocations[service.order_item_id]}
                                     onPickVendor={handlePickVendor}
                                     onOpenVendorDetail={handleOpenVendorDetail}
@@ -363,6 +366,7 @@ function ServiceBlock({
     service,
     theme,
     isFullPayment,
+    vendorNamesUnlocked = true,
     selectedVendorId,
     onPickVendor,
     onOpenVendorDetail,
@@ -435,6 +439,8 @@ function ServiceBlock({
             ) : (
                 <ScrollView
                     horizontal
+                    nestedScrollEnabled
+                    directionalLockEnabled
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.cardsRow}
                 >
@@ -444,6 +450,7 @@ function ServiceBlock({
                             vendor={vendor}
                             theme={theme}
                             isFullPayment={isFullPayment}
+                            vendorNamesUnlocked={vendorNamesUnlocked}
                             selected={selectedVendorId === vendor.id}
                             onSelect={() => onPickVendor(service.order_item_id, vendor.id)}
                             onOpenDetail={
@@ -521,7 +528,7 @@ function AiTakeCard({ theme, loading, error, recommendation, onFetch }) {
     );
 }
 
-function VendorCard({ vendor, theme, isFullPayment, selected, onSelect, onOpenDetail }) {
+function VendorCard({ vendor, theme, isFullPayment, vendorNamesUnlocked = true, selected, onSelect, onOpenDetail }) {
     // Build the raw candidate list once. Order: signed gallery_urls from the
     // backend → logo as fallback → generated avatar so the slider is never empty.
     const rawCandidates = useMemo(() => {
@@ -537,7 +544,11 @@ function VendorCard({ vendor, theme, isFullPayment, selected, onSelect, onOpenDe
         return list;
     }, [vendor]);
 
-    const businessName = vendor?.business_name || vendor?.display_label || 'Vendor';
+    const businessName = maskVendorDisplayName(
+        vendor?.business_name || vendor?.display_label,
+        vendorNamesUnlocked,
+        'Curated partner'
+    );
     const avatarFallback = useMemo(
         () => getVendorImageUrl(null, businessName),
         [businessName]
@@ -647,7 +658,11 @@ function VendorCard({ vendor, theme, isFullPayment, selected, onSelect, onOpenDe
 
             <View style={styles.cardBody}>
                 <Text style={[styles.cardTitle, { color: theme?.text || '#111' }]} numberOfLines={1}>
-                    {vendor?.display_label || vendor?.business_name || 'Curated partner'}
+                    {maskVendorDisplayName(
+                        vendor?.business_name || vendor?.display_label,
+                        vendorNamesUnlocked,
+                        'Curated partner'
+                    )}
                 </Text>
                 <View style={styles.metaRow}>
                     {vendor?.city ? (

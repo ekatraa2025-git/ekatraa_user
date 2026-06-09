@@ -643,6 +643,12 @@ export const api = {
         }
         return getWithAuth(`/api/public/orders/${orderId}`, {}, accessToken);
     },
+    async cancelOrder(orderId, accessToken) {
+        if (!accessToken) {
+            return { data: null, error: { message: 'Sign in to cancel this order.' } };
+        }
+        return patchWithAuth(`/api/public/orders/${orderId}`, { action: 'cancel' }, accessToken);
+    },
     /**
      * Match active vendors to the selected services for a given order.
      * The API auto-derives services, location, and payment tier from order_id.
