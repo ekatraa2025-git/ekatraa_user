@@ -1,16 +1,13 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
-/**
- * Floating toast — brand-aligned card, top placement, auto-dismiss.
- * @param {object | null} toast - { title?, message, variant?: 'success'|'error'|'info', duration?, action?: { label, onPress } }
- */
 export default function AppToast({ toast, theme, topInset = 12, onDismiss }) {
     const opacity = useRef(new Animated.Value(0)).current;
     const translateY = useRef(new Animated.Value(-20)).current;
     const timerRef = useRef(null);
+    const visibleRef = useRef(false);
 
     const runDismiss = useCallback(() => {
         if (timerRef.current) {
@@ -21,98 +18,104 @@ export default function AppToast({ toast, theme, topInset = 12, onDismiss }) {
             Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }),
             Animated.timing(translateY, { toValue: -12, duration: 200, useNativeDriver: true }),
         ]).start(({ finished }) => {
-            if (finished) onDismiss?.();
+            if (finished) {
+                visibleRef.current = false;
+                onDismiss?.();
+            }
         });
     }, [opacity, translateY, onDismiss]);
 
     useEffect(() => {
-        if (!toast) return undefined;
+        if (!toast) {
+            // If toast is cleared externally, snap out immediately
+            opacity.setValue(0);
+            translateY.setValue(-20);
+            visibleRef.current = false;
+            return;
+        }
+
+        visibleRef.current = true;
         opacity.setValue(0);
         translateY.setValue(-20);
+
         Animated.parallel([
             Animated.timing(opacity, { toValue: 1, duration: 220, useNativeDriver: true }),
             Animated.spring(translateY, { toValue: 0, friction: 8, tension: 90, useNativeDriver: true }),
         ]).start();
-        const dur =
-            toast.duration != null
-                ? toast.duration
-                : toast.action
-                  ? 4800
-                  : 3200;
+
+        const dur = toast.duration != null ? toast.duration : toast.action ? 4800 : 3200;
         timerRef.current = setTimeout(() => runDismiss(), dur);
+
         return () => {
             if (timerRef.current) clearTimeout(timerRef.current);
         };
     }, [toast, opacity, translateY, runDismiss]);
 
-    if (!toast) return null;
+    // Always render — visibility controlled by opacity + pointerEvents
+    const isVisible = !!toast;
 
-    const variant = toast.variant || 'info';
+    const variant = toast?.variant || 'info';
     const accent =
         variant === 'success' ? colors.success : variant === 'error' ? colors.error : colors.primary;
     const icon =
         variant === 'success' ? 'checkmark-circle' : variant === 'error' ? 'alert-circle' : 'information-circle';
 
-    const cardBg = theme?.card ?? colors.light.card;
-    const borderCol = theme?.border ?? colors.light.border;
-    const textMain = theme?.text ?? colors.light.text;
-    const textSub = theme?.textLight ?? colors.light.textLight;
+    const cardBg = theme?.card ?? '#fff';
+    const borderCol = theme?.border ?? '#e5e7eb';
+    const textMain = theme?.text ?? '#111';
+    const textSub = theme?.textLight ?? '#6b7280';
 
     return (
-        <Modal visible={!!toast} animationType="none" transparent statusBarTranslucent onRequestClose={runDismiss}>
-            <View style={styles.modalOverlay} pointerEvents="box-none">
-                <Animated.View
-                    pointerEvents="box-none"
-                    style={[
-                        styles.container,
-                        {
-                            top: topInset,
-                            opacity,
-                            transform: [{ translateY }],
-                        },
-                    ]}
-                >
-                    <View style={[styles.card, { backgroundColor: cardBg, borderColor: borderCol }]}>
-                <View style={[styles.accentBar, { backgroundColor: accent }]} />
-                <Ionicons name={icon} size={24} color={accent} style={styles.leadIcon} />
-                <View style={styles.textBlock}>
-                    {toast.title ? (
-                        <Text style={[styles.title, { color: textMain }]} numberOfLines={2}>
-                            {toast.title}
+        <Animated.View
+            pointerEvents={isVisible ? 'box-none' : 'none'}  // ← passes touches through when hidden
+            style={[
+                styles.container,
+                {
+                    top: topInset,
+                    opacity,
+                    transform: [{ translateY }],
+                },
+            ]}
+        >
+            {isVisible && (
+                <View style={[styles.card, { backgroundColor: cardBg, borderColor: borderCol }]}>
+                    <View style={[styles.accentBar, { backgroundColor: accent }]} />
+                    <Ionicons name={icon} size={24} color={accent} style={styles.leadIcon} />
+                    <View style={styles.textBlock}>
+                        {toast.title ? (
+                            <Text style={[styles.title, { color: textMain }]} numberOfLines={2}>
+                                {toast.title}
+                            </Text>
+                        ) : null}
+                        <Text
+                            style={[styles.message, { color: toast.title ? textSub : textMain }]}
+                            numberOfLines={4}
+                        >
+                            {toast.message}
                         </Text>
-                    ) : null}
-                    <Text style={[styles.message, { color: toast.title ? textSub : textMain }]} numberOfLines={4}>
-                        {toast.message}
-                    </Text>
-                </View>
-                {toast.action ? (
-                    <TouchableOpacity
-                        style={[styles.actionPill, { borderColor: accent + '55' }]}
-                        onPress={() => {
-                            try {
-                                toast.action.onPress?.();
-                            } finally {
-                                runDismiss();
-                            }
-                        }}
-                        activeOpacity={0.85}
-                    >
-                        <Text style={[styles.actionLabel, { color: accent }]}>{toast.action.label}</Text>
-                    </TouchableOpacity>
-                ) : null}
                     </View>
-                </Animated.View>
-            </View>
-        </Modal>
+                    {toast.action ? (
+                        <TouchableOpacity
+                            style={[styles.actionPill, { borderColor: accent + '55' }]}
+                            onPress={() => {
+                                runDismiss();
+                                // Navigate after dismiss animation starts
+                                setTimeout(() => toast.action.onPress?.(), 150);
+                            }}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={[styles.actionLabel, { color: accent }]}>
+                                {toast.action.label}
+                            </Text>
+                        </TouchableOpacity>
+                    ) : null}
+                </View>
+            )}
+        </Animated.View>
     );
 }
 
 const styles = StyleSheet.create({
-    modalOverlay: {
-        flex: 1,
-        justifyContent: 'flex-start',
-        pointerEvents: 'box-none',
-    },
     container: {
         position: 'absolute',
         left: 16,
