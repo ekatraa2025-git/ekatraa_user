@@ -34,7 +34,11 @@ import {
 import { computeProtectionAmountInr } from '../../utils/bookingProtection';
 import { cartRequiresFullPayment, computeOnlineChargeInr } from '../../utils/cartPaymentMode';
 import { getLineItemParts, tierIndexFromOptions, TIER_ACCENT_COLORS } from '../../utils/lineItemDisplay';
+import { Image, FlatList, Dimensions } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
+import { resolveStorageUrl } from '../../services/supabase';
+import { getOfferableTierRows } from '../../utils/lineItemDisplay';
 const ADVANCE_HEADLINE = 'Pay 20% advance & confirm booking now. (Recommended)';
 const ADVANCE_BULLETS = [
     'Instant booking confirmation (recommended vendor by Ekatraa)',
@@ -91,6 +95,7 @@ export default function Checkout({ route, navigation }) {
     const [modalScrollViewportHeight, setModalScrollViewportHeight] = useState(0);
     const [advancePayExpanded, setAdvancePayExpanded] = useState(false);
     const [laterPayExpanded, setLaterPayExpanded] = useState(false);
+    const [gstExpanded, setGstExpanded] = useState(false);
 
     const allPoliciesAgreed = POLICY_KEYS.every((k) => agreements[k]);
 
@@ -131,22 +136,59 @@ export default function Checkout({ route, navigation }) {
         })();
     }, []);
 
+    const [addOns, setAddOns] = useState([]);
+    const [addOnsLoading, setAddOnsLoading] = useState(false);
+    const [addedAddOnIds, setAddedAddOnIds] = useState(new Set());
+
+    useEffect(() => {
+        let cancelled = false;
+        setAddOnsLoading(true);
+        (async () => {
+            const { data, error } = await api.getSpecialServices();
+            if (cancelled || error || !Array.isArray(data)) {
+                setAddOnsLoading(false);
+                return;
+            }
+            const resolved = await Promise.all(
+                data
+                    .filter(s => String(s.id || '') !== 'e1000001-0000-4000-8000-000000000001' && !/e-invite|e invite/i.test(String(s.name || '')))
+                    .map(async (s) => ({
+                        ...s,
+                        image_url: s.image_url ? await resolveStorageUrl(s.image_url) : null,
+                    }))
+            );
+            if (!cancelled) setAddOns(resolved);
+            setAddOnsLoading(false);
+        })();
+        return () => { cancelled = true; };
+    }, []);
+
     const eventInfo = cartDetails || cart || {};
     const items = eventInfo.items || cart?.items || [];
     const totalAmount = items.reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unit_price) || 0), 0);
-
-    const protectionAmount = computeProtectionAmountInr(totalAmount, protectionSettings, protectionPlanEnabled);
+    const addOnTotal = [...addedAddOnIds].reduce((sum, id) => {
+        const svc = addOns.find(s => s.id === id);
+        if (!svc) return sum;
+        const tiers = getOfferableTierRows(svc);
+        const prices = tiers.map(t => t.value).filter(n => n > 0);
+        return sum + (prices.length ? Math.min(...prices) : 0);
+    }, 0);
+    const combinedSubtotal = totalAmount + addOnTotal;
+    const protectionAmount = computeProtectionAmountInr(combinedSubtotal, protectionSettings, protectionPlanEnabled);
     const grandTotal = totalAmount + protectionAmount;
     const requiresFullPayment = useMemo(() => {
         const rows = (cartDetails && cartDetails.items) || (cart && cart.items) || [];
         return cartRequiresFullPayment(Array.isArray(rows) ? rows : []);
     }, [cartDetails, cart]);
     const advanceAmount = useMemo(
-        () => computeOnlineChargeInr(totalAmount, protectionAmount, requiresFullPayment, 20),
-        [totalAmount, protectionAmount, requiresFullPayment]
+        () => computeOnlineChargeInr(combinedSubtotal, protectionAmount, requiresFullPayment, 20),
+        [combinedSubtotal, protectionAmount, requiresFullPayment]
     );
+    // GST = 18% on (advanceAmount + protectionAmount)
+    const gstBase = advanceAmount + protectionAmount;
+    const gstAmount = Math.round(gstBase * 0.18);
+    const payNowTotal = gstBase + gstAmount;
     const balanceAmount = grandTotal - advanceAmount;
-
     useEffect(() => {
         if (!requiresFullPayment) return;
         setPaymentMode((m) => (m === 'on_finalization' ? 'advance' : m));
@@ -354,35 +396,7 @@ export default function Checkout({ route, navigation }) {
                     <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
                         {items.length > 0 && (
                             <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                                <Text style={[styles.cardTitle, { color: theme.text }]}>Order Summary</Text>
-                                {(eventInfo.event_name || eventInfo.event_role) && (
-                                    <View
-                                        style={[
-                                            styles.orderSummaryMeta,
-                                            { backgroundColor: theme.background, borderColor: theme.border },
-                                        ]}
-                                    >
-                                        {eventInfo.event_name ? (
-                                            <View style={styles.orderMetaRow}>
-                                                <Text style={[styles.orderMetaLabel, { color: theme.textLight }]}>
-                                                    Occasion
-                                                </Text>
-                                                <Text style={[styles.orderMetaValue, { color: theme.text }]} numberOfLines={2}>
-                                                    {eventInfo.event_name}
-                                                </Text>
-                                            </View>
-                                        ) : null}
-                                        {eventInfo.event_role ? (
-                                            <View style={styles.orderMetaRow}>
-                                                <Text style={[styles.orderMetaLabel, { color: theme.textLight }]}>Role</Text>
-                                                <Text style={[styles.orderMetaValue, { color: theme.text }]} numberOfLines={2}>
-                                                    {eventInfo.event_role}
-                                                </Text>
-                                            </View>
-                                        ) : null}
-                                    </View>
-                                )}
-                                <Text style={[styles.servicesSectionTitle, { color: theme.text }]}>Services</Text>
+                             <Text style={[styles.cardTitle, { color: theme.text }]}>Services</Text>
                                 {items.map((item, idx) => {
                                     const parts = getLineItemParts(item);
                                     const occ = eventInfo.event_name;
@@ -430,22 +444,271 @@ export default function Checkout({ route, navigation }) {
                                         </View>
                                     );
                                 })}
+                                {[...addedAddOnIds].map(id => {
+                                    const svc = addOns.find(s => s.id === id);
+                                    if (!svc) return null;
+                                    const tiers = getOfferableTierRows(svc);
+                                    const prices = tiers.map(t => t.value).filter(n => n > 0);
+                                    const price = prices.length ? Math.min(...prices) : 0;
+                                    return (
+                                        <View
+                                            key={id}
+                                            style={[
+                                                styles.itemRow,
+                                                {
+                                                    borderBottomColor: theme.border,
+                                                    borderLeftWidth: 4,
+                                                    borderLeftColor: colors.primary,
+                                                    paddingLeft: 10,
+                                                },
+                                            ]}
+                                        >
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={[styles.itemCategoryOccasion, { color: theme.textLight }]}>
+                                                    Special add-on
+                                                </Text>
+                                                <Text style={[styles.itemName, { color: theme.text }]}>{svc.name}</Text>
+                                            </View>
+                                            <TouchableOpacity
+                                                onPress={() => setAddedAddOnIds(prev => {
+                                                    const next = new Set(prev);
+                                                    next.delete(id);
+                                                    return next;
+                                                })}
+                                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                            >
+                                                <Ionicons name="close-circle" size={18} color={theme.textLight} />
+                                            </TouchableOpacity>
+                                            <Text style={[styles.itemPrice, { color: theme.text, marginLeft: 8 }]}>
+                                                ₹{price.toLocaleString()}
+                                            </Text>
+                                        </View>
+                                    );
+                                })}
+                                <Text style={[styles.cardTitle, { color: theme.text,marginTop: 24 }]}>Order Summary</Text>
+                                {(eventInfo.event_name || eventInfo.event_role) && (
+                                    <View
+                                        style={[
+                                            styles.orderSummaryMeta,
+                                            { backgroundColor: theme.background, borderColor: theme.border },
+                                        ]}
+                                    >
+                                        {eventInfo.event_name ? (
+                                            <View style={styles.orderMetaRow}>
+                                                <Text style={[styles.orderMetaLabel, { color: theme.textLight }]}>
+                                                    Occasion
+                                                </Text>
+                                                <Text style={[styles.orderMetaValue, { color: theme.text }]} numberOfLines={2}>
+                                                    {eventInfo.event_name}
+                                                </Text>
+                                            </View>
+                                        ) : null}
+                                        {eventInfo.event_role ? (
+                                            <View style={styles.orderMetaRow}>
+                                                <Text style={[styles.orderMetaLabel, { color: theme.textLight }]}>Role</Text>
+                                                <Text style={[styles.orderMetaValue, { color: theme.text }]} numberOfLines={2}>
+                                                    {eventInfo.event_role}
+                                                </Text>
+                                            </View>
+                                        ) : null}
+                                    </View>
+                                )}
+                               
+                                {/* Services subtotal */}
                                 <View style={styles.totalRow}>
                                     <Text style={[styles.totalLabel, { color: theme.textLight }]}>Services subtotal</Text>
-                                    <Text style={[styles.totalValue, { color: theme.text, fontSize: 16 }]}>₹{totalAmount.toLocaleString()}</Text>
+                                    <Text style={[styles.totalValue, { color: theme.text, fontSize: 16 }]}>
+                                        ₹{combinedSubtotal.toLocaleString()}
+                                    </Text>
                                 </View>
-                                {protectionAmount > 0 ? (
-                                    <View style={styles.totalRow}>
+
+                                {/* Advance 20% — small muted sub-row */}
+                                <View style={[styles.totalRow, { marginTop: 2 }]}>
+                                    <Text style={[styles.subRowLabel, { color: theme.textLight }]}>
+                                        Advance
+                                    </Text>
+                                    <Text style={[styles.subRowValue, { color: theme.textLight }]}>
+                                        ₹{advanceAmount.toLocaleString()}
+                                    </Text>
+                                </View>
+
+                                {/* Booking protection */}
+                                {protectionPlanEnabled && protectionAmount > 0 && (
+                                    <View style={[styles.totalRow, { marginTop: 2 }]}>
                                         <Text style={[styles.totalLabel, { color: theme.textLight }]}>Booking protection</Text>
-                                        <Text style={[styles.totalValue, { color: theme.text, fontSize: 16 }]}>₹{protectionAmount.toLocaleString()}</Text>
+                                        <Text style={[styles.totalValue, { color: theme.text, fontSize: 16 }]}>
+                                            ₹{protectionAmount.toLocaleString()}
+                                        </Text>
                                     </View>
-                                ) : null}
+                                )}
+
+                                {/* GST — always visible, faded, clickable to show breakdown */}
+                                <TouchableOpacity
+                                    style={[styles.totalRow, { marginTop: 2, opacity: 0.45 }]}
+                                    onPress={() => setGstExpanded(v => !v)}
+                                    activeOpacity={0.6}
+                                >
+                                    <Text style={[styles.subRowLabel, { color: theme.textLight }]}>
+                                        GST
+                                    </Text>
+                                    {gstExpanded && (
+                                        <Text style={[styles.subRowValue, { color: theme.textLight }]}>
+                                            ₹{gstAmount.toLocaleString()}
+                                        </Text>
+                                    )}
+                                </TouchableOpacity>
+
+
+
+                                {/* Divider */}
+                                <View style={[styles.totalDivider, { borderColor: theme.border }]} />
+
+                                {/* Total order value — subtotal + protection + GST */}
                                 <View style={styles.totalRow}>
-                                    <Text style={[styles.totalLabel, { color: theme.text }]}>Order total</Text>
-                                    <Text style={[styles.totalValue, { color: colors.primary }]}>₹{grandTotal.toLocaleString()}</Text>
+                                    <Text style={[styles.totalLabel, { color: theme.textLight }]}>Total order value</Text>
+                                    <Text style={[styles.totalValue, { color: theme.text, fontSize: 16 }]}>
+                                        ₹{(totalAmount + protectionAmount + gstAmount).toLocaleString()}
+                                    </Text>
+                                </View>
+
+                                {/* Pay now */}
+                                <View style={styles.totalRow}>
+                                    <Text style={[styles.totalLabel, { color: theme.text }]}>Pay now</Text>
+                                    <Text style={[styles.totalValue, { color: colors.primary }]}>
+                                        ₹{payNowTotal.toLocaleString()}
+                                    </Text>
                                 </View>
                             </View>
+
                         )}
+                        {/* ── Swiggy-style Add-ons Strip ── */}
+                        {(addOnsLoading || addOns.length > 0) && (
+                            <View style={[addOnStyles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                                <View style={addOnStyles.headerRow}>
+                                    <View style={[addOnStyles.headerAccent, { backgroundColor: colors.primary }]} />
+                                    <Text style={[addOnStyles.headerTitle, { color: theme.text }]}>Add to your booking</Text>
+                                    <Text style={[addOnStyles.headerBadge, { backgroundColor: colors.primary + '18', color: colors.primary }]}>
+                                        Special add-ons
+                                    </Text>
+                                </View>
+                                <Text style={[addOnStyles.headerSub, { color: theme.textLight }]}>
+                                    Frequently booked together · Instant confirmation
+                                </Text>
+
+                                {addOnsLoading ? (
+                                    <View style={addOnStyles.loadingRow}>
+                                        {[0, 1, 2].map(i => (
+                                            <View key={i} style={[addOnStyles.skeletonCard, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                                                <View style={[addOnStyles.skeletonImg, { backgroundColor: theme.border }]} />
+                                                <View style={[addOnStyles.skeletonLine, { backgroundColor: theme.border, width: '70%' }]} />
+                                                <View style={[addOnStyles.skeletonLine, { backgroundColor: theme.border, width: '45%', marginTop: 4 }]} />
+                                            </View>
+                                        ))}
+                                    </View>
+                                ) : (
+                                    <FlatList
+                                        data={addOns}
+                                        horizontal
+                                        showsHorizontalScrollIndicator={false}
+                                        keyExtractor={item => String(item.id)}
+                                        contentContainerStyle={addOnStyles.listContent}
+                                        renderItem={({ item: svc }) => {
+                                            const tiers = getOfferableTierRows(svc);
+                                            const prices = tiers.map(t => t.value).filter(n => n > 0);
+                                            const basePrice = prices.length ? Math.min(...prices) : null;
+                                            // Dummy discount: cycle through 10%, 15%, 20% based on index
+                                            const discountPcts = [10, 15, 20, 12, 18];
+                                            const discountPct = discountPcts[addOns.indexOf(svc) % discountPcts.length];
+                                            const originalPrice = basePrice ? Math.round(basePrice / (1 - discountPct / 100)) : null;
+                                            const isAdded = addedAddOnIds.has(svc.id);
+
+                                            return (
+                                                <View style={[addOnStyles.card, { backgroundColor: theme.background, borderColor: isAdded ? colors.primary : theme.border }]}>
+                                                    {/* Discount badge */}
+                                                    {discountPct && (
+                                                        <View style={[addOnStyles.discountBadge, { backgroundColor: colors.primary }]}>
+                                                            <Text style={addOnStyles.discountText}>{discountPct}% OFF</Text>
+                                                        </View>
+                                                    )}
+
+                                                    {/* Image */}
+                                                    <View style={[addOnStyles.imgWrap, { backgroundColor: theme.card }]}>
+                                                        {svc.image_url ? (
+                                                            <Image source={{ uri: svc.image_url }} style={addOnStyles.img} resizeMode="cover" />
+                                                        ) : (
+                                                            <LinearGradient
+                                                                colors={['#5B21B6', '#C2410C']}
+                                                                style={addOnStyles.imgPlaceholder}
+                                                            >
+                                                                <Ionicons name="sparkles" size={22} color="#FFF" />
+                                                            </LinearGradient>
+                                                        )}
+                                                    </View>
+
+                                                    {/* Info */}
+                                                    <Text style={[addOnStyles.svcName, { color: theme.text }]} numberOfLines={2}>
+                                                        {svc.name}
+                                                    </Text>
+                                                    {basePrice != null && (
+                                                        <View style={addOnStyles.priceRow}>
+                                                            <Text style={[addOnStyles.price, { color: theme.text }]}>
+                                                                ₹{basePrice.toLocaleString('en-IN')}
+                                                            </Text>
+                                                            {originalPrice && (
+                                                                <Text style={[addOnStyles.originalPrice, { color: theme.textLight }]}>
+                                                                    ₹{originalPrice.toLocaleString('en-IN')}
+                                                                </Text>
+                                                            )}
+                                                        </View>
+                                                    )}
+
+                                                    {/* Add button */}
+                                                    <TouchableOpacity
+                                                        style={[
+                                                            addOnStyles.addBtn,
+                                                            {
+                                                                borderColor: isAdded ? colors.primary : colors.primary,
+                                                                backgroundColor: isAdded ? colors.primary : 'transparent',
+                                                            },
+                                                        ]}
+                                                        onPress={() => {
+                                                            setAddedAddOnIds(prev => {
+                                                                const next = new Set(prev);
+                                                                if (next.has(svc.id)) next.delete(svc.id);
+                                                                else next.add(svc.id);
+                                                                return next;
+                                                            });
+                                                            if (!isAdded) {
+                                                                showToast({
+                                                                    variant: 'info',
+                                                                    title: 'Add-on noted',
+                                                                    message: `${svc.name} — go to Special Services to add it to your cart.`,
+                                                                    action: {
+                                                                        label: 'Go',
+                                                                        onPress: () => navigation.navigate('SpecialServices', {
+                                                                            occasionId: null,
+                                                                            occasionName: null,
+                                                                            city: eventInfo.location_preference || '',
+                                                                            selectedServiceId: svc.id,
+                                                                        }),
+                                                                    },
+                                                                });
+                                                            }
+                                                        }}
+                                                        activeOpacity={0.8}
+                                                    >
+                                                        <Text style={[addOnStyles.addBtnText, { color: isAdded ? '#FFF' : colors.primary }]}>
+                                                            {isAdded ? '✓ Added' : '+ Add'}
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                </View>
+                                            );
+                                        }}
+                                    />
+                                )}
+                            </View>
+                        )}
+
 
                         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             <Text style={[styles.cardTitle, { color: theme.text }]}>Event Details</Text>
@@ -690,8 +953,8 @@ export default function Checkout({ route, navigation }) {
                                     {paymentMode === 'on_finalization'
                                         ? 'Place Order (Pay on Finalization)'
                                         : requiresFullPayment
-                                            ? `Pay ₹${advanceAmount.toLocaleString()} in full & place order`
-                                            : `Pay ₹${advanceAmount.toLocaleString()} & place order`}
+                                            ? `Pay ₹${payNowTotal.toLocaleString()}in full & place order`
+                                            : `Pay ₹${payNowTotal.toLocaleString()}& place order`}
                                 </Text>
                             )}
                         </TouchableOpacity>
@@ -960,4 +1223,143 @@ const styles = StyleSheet.create({
         opacity: 0.45,
     },
     modalAgreeBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+});
+const ADDON_CARD_W = 148;
+
+const addOnStyles = StyleSheet.create({
+    section: {
+        borderRadius: 16,
+        borderWidth: 1,
+        paddingTop: 16,
+        paddingBottom: 6,
+        marginBottom: 16,
+        overflow: 'hidden',
+    },
+    headerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        gap: 8,
+        marginBottom: 4,
+    },
+    headerAccent: {
+        width: 4,
+        height: 18,
+        borderRadius: 2,
+    },
+    headerTitle: {
+        fontSize: 16,
+        fontWeight: '800',
+        flex: 1,
+    },
+    headerBadge: {
+        fontSize: 11,
+        fontWeight: '700',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 999,
+    },
+    headerSub: {
+        fontSize: 12,
+        paddingHorizontal: 16,
+        marginBottom: 12,
+        lineHeight: 17,
+    },
+    loadingRow: {
+        flexDirection: 'row',
+        paddingHorizontal: 16,
+        gap: 10,
+        paddingBottom: 12,
+    },
+    skeletonCard: {
+        width: ADDON_CARD_W,
+        borderRadius: 12,
+        borderWidth: 1,
+        padding: 10,
+        gap: 8,
+    },
+    skeletonImg: {
+        width: '100%',
+        height: 90,
+        borderRadius: 10,
+    },
+    skeletonLine: {
+        height: 10,
+        borderRadius: 5,
+    },
+    listContent: {
+        paddingLeft: 16,
+        paddingRight: 16,
+        paddingBottom: 12,
+        gap: 10,
+    },
+    card: {
+        width: ADDON_CARD_W,
+        borderRadius: 14,
+        borderWidth: 1.5,
+        padding: 10,
+        position: 'relative',
+    },
+    discountBadge: {
+        position: 'absolute',
+        top: 8,
+        left: 8,
+        zIndex: 2,
+        paddingHorizontal: 6,
+        paddingVertical: 3,
+        borderRadius: 6,
+    },
+    discountText: {
+        color: '#FFF',
+        fontSize: 10,
+        fontWeight: '800',
+    },
+    imgWrap: {
+        width: '100%',
+        height: 90,
+        borderRadius: 10,
+        overflow: 'hidden',
+        marginBottom: 8,
+    },
+    img: {
+        width: '100%',
+        height: '100%',
+    },
+    imgPlaceholder: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    svcName: {
+        fontSize: 12,
+        fontWeight: '700',
+        lineHeight: 16,
+        minHeight: 32,
+        marginBottom: 6,
+    },
+    priceRow: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+        gap: 4,
+        marginBottom: 8,
+        flexWrap: 'wrap',
+    },
+    price: {
+        fontSize: 13,
+        fontWeight: '800',
+    },
+    originalPrice: {
+        fontSize: 11,
+        textDecorationLine: 'line-through',
+    },
+    addBtn: {
+        borderWidth: 1.5,
+        borderRadius: 8,
+        paddingVertical: 6,
+        alignItems: 'center',
+    },
+    addBtnText: {
+        fontSize: 12,
+        fontWeight: '800',
+    },
 });

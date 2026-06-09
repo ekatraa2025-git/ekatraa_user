@@ -165,14 +165,14 @@ export default function Login({ navigation, route }) {
                         />
 
                         {/* Divider */}
-                        <View style={styles.dividerContainer}>
+                        {/* <View style={styles.dividerContainer}>
                             <View style={[styles.divider, { backgroundColor: theme.border }]} />
                             <Text style={[styles.dividerText, { color: theme.textLight }]}>{tr('login_or')}</Text>
                             <View style={[styles.divider, { backgroundColor: theme.border }]} />
-                        </View>
+                        </View> */}
 
                         {/* Google Sign In */}
-                        <TouchableOpacity
+                        {/* <TouchableOpacity
                             style={[styles.googleButton, { borderColor: theme.border }]}
                             onPress={handleGoogleSignIn}
                             disabled={googleLoading}
@@ -187,7 +187,7 @@ export default function Login({ navigation, route }) {
                                     </Text>
                                 </>
                             )}
-                        </TouchableOpacity>
+                        </TouchableOpacity> */}
                     </View>
 
                     {/* Footer */}

@@ -22,7 +22,7 @@ Refunds under Booking Protection
 Refunds or rescheduling benefits are available only if Booking Protection is added, subject to applicable terms.
 
 Without Booking Protection
-❌ 0% refund (non-refundable in all cases)
+0% refund (non-refundable in all cases)
 
 With Booking Protection
 Refund or rescheduling benefits are available only if Booking Protection is added at payment, subject to applicable terms and the selected protection plan.`;
@@ -53,9 +53,9 @@ Serious Medical Emergency or Death of Key Event Host or any direct blood relatio
 Unexpected hospitalization, medical emergency, or death in the immediate family of the event host that necessitates cancellation or postponement.
 
 Rescheduling Policy (With Protection)
-✔ Free rescheduling once (if requested 7+ days before event)
-✔ Subject to vendor availability
-✔ Price difference (if any) payable`;
+• Free rescheduling once (if requested 7+ days before event)
+• Subject to vendor availability
+• Price difference (if any) payable`;
 
 export const TERMS_AND_CONDITIONS = `Terms & Conditions (Checkout)
 
@@ -69,23 +69,23 @@ export const PROTECTION_PLAN_DETAILS = `Payment Protection Plan — Details
 
 When enabled with your advance payment, you acknowledge the protection scope described in the Cancellation, Refund, and Rescheduling policies.
 
-🌟 3. Protection Plan Benefits
+3. Protection Plan Benefits
 
 Ekatraa Booking Protection includes:
 
-✅ Financial Protection
+Financial Protection
 • Refund eligibility up to 100% of advance (subject to plan terms)
 • Reduced cancellation penalties
 
-✅ Flexibility
+Flexibility
 • One-time free rescheduling
 • Vendor change support
 
-✅ Priority Support
+Priority Support
 • Dedicated assistance for changes
 • Faster resolution
 
-✅ Risk Coverage
+Risk Coverage
 • Protection against last-minute plan changes
 • Reduced financial loss
 
